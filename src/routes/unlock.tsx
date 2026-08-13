@@ -41,9 +41,11 @@ function UnlockPage() {
         await router.navigate({ to: "/", replace: true });
         return;
       }
-      setError("Incorrect password. Please try again.");
-    } catch {
-      setError("Something went wrong. Please try again.");
+      setError(res.reason ?? "Incorrect password. Please try again.");
+    } catch (err) {
+      // Surface the real cause -- a swallowed message here is impossible to debug
+      // against a deployed build.
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
