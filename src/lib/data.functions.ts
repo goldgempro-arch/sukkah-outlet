@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import type { AppData } from "@/lib/data-store";
 import type { Database } from "@/integrations/supabase/types";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/integrations/supabase/config";
 
 const blobKeys: (keyof AppData)[] = [
   "parts-catalog",
@@ -17,8 +18,8 @@ const blobKeys: (keyof AppData)[] = [
 ];
 
 function createPublicClient() {
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  return createClient<Database>(process.env["SUPABASE_URL"]!, key, {
+  const key = SUPABASE_PUBLISHABLE_KEY;
+  return createClient<Database>(SUPABASE_URL, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
