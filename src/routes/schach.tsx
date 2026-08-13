@@ -754,11 +754,52 @@ function SchachPage() {
               </CardContent>
             </Card>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            {existing.length > 0 ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <OptionCard
+                  key={`reuse-${result.reuseOptions?.length}-${result.totalWidth}-${matType}`}
+                  title="Reuse Options"
+                  options={result.reuseOptions ?? []}
+                  discount={discountPct}
+                  idx={cheapIdx}
+                  onIdxChange={setCheapIdx}
+                  manual={cheapManual}
+                  onManualChange={setCheapManual}
+                  sukkahW={w}
+                  sukkahL={l}
+                  poleFt={result.poleFt}
+                  bpnsCode={standard ? result.bpnsCode : null}
+                  bpnsPrice={result.bpnsPrice}
+                  bpnsPoles={result.bpnsPoles}
+                  includePoles={includePoles}
+                  deliveryCost={Number(deliveryCost) || 0}
+                  matType={matType}
+                />
+                <OptionCard
+                  key={`fresh-${result.freshOptions.length}-${result.totalWidth}-${matType}`}
+                  title="Fresh Options"
+                  options={result.freshOptions}
+                  discount={discountPct}
+                  idx={fewestIdx}
+                  onIdxChange={setFewestIdx}
+                  manual={fewestManual}
+                  onManualChange={setFewestManual}
+                  sukkahW={w}
+                  sukkahL={l}
+                  poleFt={result.poleFt}
+                  bpnsCode={standard ? result.bpnsCode : null}
+                  bpnsPrice={result.bpnsPrice}
+                  bpnsPoles={result.bpnsPoles}
+                  includePoles={includePoles}
+                  deliveryCost={Number(deliveryCost) || 0}
+                  matType={matType}
+                />
+              </div>
+            ) : (
               <OptionCard
-                key={`cheap-${result.cheapOptions.length}-${result.totalWidth}-${matType}`}
-                title="Cheapest"
-                options={result.cheapOptions}
+                key={`fresh-only-${result.freshOptions.length}-${result.totalWidth}-${matType}`}
+                title="Fresh Options"
+                options={result.freshOptions}
                 discount={discountPct}
                 idx={cheapIdx}
                 onIdxChange={setCheapIdx}
@@ -774,26 +815,7 @@ function SchachPage() {
                 deliveryCost={Number(deliveryCost) || 0}
                 matType={matType}
               />
-              <OptionCard
-                key={`fewest-${result.fewestOptions.length}-${result.totalWidth}-${matType}`}
-                title="Fewest mats"
-                options={result.fewestOptions}
-                discount={discountPct}
-                idx={fewestIdx}
-                onIdxChange={setFewestIdx}
-                manual={fewestManual}
-                onManualChange={setFewestManual}
-                sukkahW={w}
-                sukkahL={l}
-                poleFt={result.poleFt}
-                bpnsCode={standard ? result.bpnsCode : null}
-                bpnsPrice={result.bpnsPrice}
-                bpnsPoles={result.bpnsPoles}
-                includePoles={includePoles}
-                deliveryCost={Number(deliveryCost) || 0}
-                matType={matType}
-              />
-            </div>
+            )}
           </>
         )}
       </div>

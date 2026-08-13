@@ -5,6 +5,7 @@ import {
   calculateMatsFewest,
   calculateMatsWithReuse,
   calculateReuseOptions,
+  calculateFreshOptions,
   getBpns,
   type ErrorResult,
   type ExistingMat,
@@ -58,6 +59,8 @@ export interface SchachResult {
   totalWidth: number;
   cheapOptions: MatResult[];
   fewestOptions: MatResult[];
+  reuseOptions?: MatResult[];
+  freshOptions: MatResult[];
   bpnsCode: string | null;
   bpnsPoles: number | null;
   bpnsPrice: number | null;
@@ -221,58 +224,21 @@ export function runSchach(input: SchachInput): SchachResult {
     );
     fewestOptions = sortedFewest.length ? sortedFewest : isErr(fewest) ? [] : [fewest];
   } else {
-    const cheapFresh = calculateMatsCheapest(matType, poleFt, totalWidth, [], fedex);
-    const fewestFresh = calculateMatsFewest(matType, poleFt, totalWidth, [], fedex);
-
-    const reuseCheap = calculateMatsWithReuse(matType, poleFt, totalWidth, existing, fedex, false);
-    const reuseFewest = calculateMatsWithReuse(matType, poleFt, totalWidth, existing, fedex, true);
-
-    // Multiple genuinely reuse-based options (same reused mats, different fills).
-    const reuseVariants = calculateReuseOptions(matType, poleFt, totalWidth, existing, fedex, 5);
-
-    if (reuseCheap && !isErr(reuseCheap)) {
-      const current = isErr(cheapest) ? Infinity : cheapest.total_new;
-      if (reuseCheap.total_new < current) cheapest = reuseCheap;
-    }
-    if (reuseFewest && !isErr(reuseFewest)) {
-      const current = isErr(fewest) ? Infinity : matCount(fewest);
-      if (matCount(reuseFewest) < current) fewest = reuseFewest;
-    }
-
-    // Even when reusing, surface several fresh alternatives so the user has
-    // real options to browse (parity with the no-reuse path).
-    const freshOpts = calculateAllOptions(matType, poleFt, totalWidth, [], fedex, 8);
-
-    const dedupe = (list: (MatResult | ErrorResult | null)[]): MatResult[] => {
-      const seen = new Set<string>();
-      const out: MatResult[] = [];
-      for (const r of list) {
-        if (!r || isErr(r)) continue;
-        const key = optionKey(r) + `|${(r.reused ?? []).map((x) => `${x.width}x${x.roll}x${x.qty}`).join(",")}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(r);
-      }
-      return out.slice(0, 6);
-    };
-
-    const freshByCost = [...freshOpts].sort(
-      (a, b) => a.total_new - b.total_new || matCount(a) - matCount(b),
-    );
-    const freshByCount = [...freshOpts].sort(
-      (a, b) => matCount(a) - matCount(b) || a.total_new - b.total_new,
-    );
-
-    const reuseByCost = [...reuseVariants].sort(
-      (a, b) => a.total_new - b.total_new || matCount(a) - matCount(b),
-    );
-    const reuseByCount = [...reuseVariants].sort(
-      (a, b) => matCount(a) - matCount(b) || a.total_new - b.total_new,
-    );
-
-    cheapOptions = dedupe([cheapest, ...reuseByCost, cheapFresh, ...freshByCost]);
-    fewestOptions = dedupe([fewest, ...reuseByCount, fewestFresh, ...freshByCount]);
+    cheapOptions = isErr(cheapest) ? [] : [cheapest];
+    fewestOptions = isErr(fewest) ? [] : [fewest];
   }
 
-  return { ...base, cheapOptions, fewestOptions };
+  // Generate new-style options: reuse (if applicable) and fresh
+  let reuseOptions: MatResult[] = [];
+  let freshOptions: MatResult[] = [];
+
+  if (existing.length > 0) {
+    // When existing mats, show reuse options
+    reuseOptions = calculateReuseOptions(matType, poleFt, totalWidth, existing, fedex);
+  }
+
+  // Always provide fresh options
+  freshOptions = calculateFreshOptions(matType, poleFt, totalWidth, fedex);
+
+  return { ...base, cheapOptions, fewestOptions, reuseOptions, freshOptions };
 }
