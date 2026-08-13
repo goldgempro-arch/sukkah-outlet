@@ -1,0 +1,51 @@
+{
+  "Star-K": [
+    {
+      "code": "BMA0810FX",
+      "width": 8,
+      "roll": 10,
+      "price": 120
+    },
+    {
+      "code": "BMA0812FX",
+      "width": 8,
+      "roll": 12,
+      "price": 144
+    },
+    {
+      "code": "BMA0816FX",
+      "width": 8,
+      "roll": 16,
+      "price": 192
+    },
+    {
+      "code": "BMA1012FX",
+      "width": 10,
+      "roll": 12,
+      "price": 240
+    },
+    {
+      "code": "BMA1016FX",
+      "width": 10,
+      "roll": 16,
+      "price": 320
+    }
+  ],
+  "Hadar": [
+    {
+      "code": "BMH0816FX",
+      "width": 8,
+      "roll": 16,
+      "price": 200
+    }
+  ],
+  "Mehadrin": [
+    {
+      "code": "BMM0816FX",
+      "width": 8,
+      "roll": 16,
+      "price": 225
+    }
+  ],
+  "Kaynus": []
+}

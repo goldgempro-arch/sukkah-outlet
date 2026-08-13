@@ -1,0 +1,194 @@
+{
+  "4,4": {
+    "code": "BPNS0404",
+    "num_poles": 3,
+    "pole_ft": 4,
+    "price": 12
+  },
+  "4,6": {
+    "code": "BPNS0406",
+    "num_poles": 5,
+    "pole_ft": 6,
+    "price": 30
+  },
+  "6,4": {
+    "code": "BPNS0406",
+    "num_poles": 5,
+    "pole_ft": 6,
+    "price": 30
+  },
+  "6,6": {
+    "code": "BPNS0606",
+    "num_poles": 4,
+    "pole_ft": 6,
+    "price": 24
+  },
+  "4,8": {
+    "code": "BPNS0608",
+    "num_poles": 5,
+    "pole_ft": 8,
+    "price": 40
+  },
+  "8,4": {
+    "code": "BPNS0608",
+    "num_poles": 5,
+    "pole_ft": 8,
+    "price": 40
+  },
+  "8,6": {
+    "code": "BPNS0608",
+    "num_poles": 5,
+    "pole_ft": 8,
+    "price": 40
+  },
+  "8,8": {
+    "code": "BPNS0808",
+    "num_poles": 6,
+    "pole_ft": 8,
+    "price": 48
+  },
+  "8,10": {
+    "code": "BPNS0810",
+    "num_poles": 7,
+    "pole_ft": 10,
+    "price": 70
+  },
+  "10,8": {
+    "code": "BPNS0810",
+    "num_poles": 7,
+    "pole_ft": 10,
+    "price": 70
+  },
+  "8,12": {
+    "code": "BPNS0812",
+    "num_poles": 9,
+    "pole_ft": 8,
+    "price": 72
+  },
+  "12,8": {
+    "code": "BPNS0812",
+    "num_poles": 9,
+    "pole_ft": 8,
+    "price": 72
+  },
+  "8,16": {
+    "code": "BPNS0816",
+    "num_poles": 11,
+    "pole_ft": 8,
+    "price": 88
+  },
+  "16,8": {
+    "code": "BPNS0816",
+    "num_poles": 11,
+    "pole_ft": 8,
+    "price": 88
+  },
+  "10,12": {
+    "code": "BPNS1012",
+    "num_poles": 9,
+    "pole_ft": 10,
+    "price": 90
+  },
+  "12,10": {
+    "code": "BPNS1012",
+    "num_poles": 9,
+    "pole_ft": 10,
+    "price": 90
+  },
+  "10,16": {
+    "code": "BPNS1016",
+    "num_poles": 13,
+    "pole_ft": 10,
+    "price": 130
+  },
+  "16,10": {
+    "code": "BPNS1016",
+    "num_poles": 13,
+    "pole_ft": 10,
+    "price": 130
+  },
+  "10,20": {
+    "code": "BPNS1020",
+    "num_poles": 16,
+    "pole_ft": 10,
+    "price": 160
+  },
+  "20,10": {
+    "code": "BPNS1020",
+    "num_poles": 16,
+    "pole_ft": 10,
+    "price": 160
+  },
+  "12,16": {
+    "code": "BPNS1216",
+    "num_poles": 13,
+    "pole_ft": 12,
+    "price": 156
+  },
+  "16,12": {
+    "code": "BPNS1216",
+    "num_poles": 13,
+    "pole_ft": 12,
+    "price": 156
+  },
+  "12,20": {
+    "code": "BPNS1220",
+    "num_poles": 16,
+    "pole_ft": 12,
+    "price": 192
+  },
+  "20,12": {
+    "code": "BPNS1220",
+    "num_poles": 16,
+    "pole_ft": 12,
+    "price": 192
+  },
+  "12,24": {
+    "code": "BPNS1224",
+    "num_poles": 19,
+    "pole_ft": 12,
+    "price": 228
+  },
+  "24,12": {
+    "code": "BPNS1224",
+    "num_poles": 19,
+    "pole_ft": 12,
+    "price": 228
+  },
+  "10,10": {
+    "code": "BPNS1012",
+    "num_poles": 9,
+    "pole_ft": 10,
+    "price": 90
+  },
+  "12,12": {
+    "code": "BPNS1216",
+    "num_poles": 13,
+    "pole_ft": 12,
+    "price": 156
+  },
+  "14,12": {
+    "code": "BPNS1216",
+    "num_poles": 13,
+    "pole_ft": 12,
+    "price": 156
+  },
+  "12,14": {
+    "code": "BPNS1216",
+    "num_poles": 13,
+    "pole_ft": 12,
+    "price": 156
+  },
+  "20,8": {
+    "code": "BPNS0816",
+    "num_poles": 11,
+    "pole_ft": 8,
+    "price": 88
+  },
+  "8,20": {
+    "code": "BPNS0816",
+    "num_poles": 11,
+    "pole_ft": 8,
+    "price": 88
+  }
+}

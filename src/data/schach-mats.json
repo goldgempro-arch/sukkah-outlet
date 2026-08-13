@@ -1,0 +1,436 @@
+{
+  "Star-K": [
+    {
+      "code": "BMA0404",
+      "width": 4,
+      "roll": 4,
+      "price": 24
+    },
+    {
+      "code": "BMA0406",
+      "width": 4,
+      "roll": 6,
+      "price": 36
+    },
+    {
+      "code": "BMA0408",
+      "width": 4,
+      "roll": 8,
+      "price": 48
+    },
+    {
+      "code": "BMA0410",
+      "width": 4,
+      "roll": 10,
+      "price": 60
+    },
+    {
+      "code": "BMA0412",
+      "width": 4,
+      "roll": 12,
+      "price": 72
+    },
+    {
+      "code": "BMA0506",
+      "width": 5,
+      "roll": 6,
+      "price": 45
+    },
+    {
+      "code": "BMA0508",
+      "width": 5,
+      "roll": 8,
+      "price": 60
+    },
+    {
+      "code": "BMA0510",
+      "width": 5,
+      "roll": 10,
+      "price": 75
+    },
+    {
+      "code": "BMA0512",
+      "width": 5,
+      "roll": 12,
+      "price": 90
+    },
+    {
+      "code": "BMA0514",
+      "width": 5,
+      "roll": 14,
+      "price": 105
+    },
+    {
+      "code": "BMA0516",
+      "width": 5,
+      "roll": 16,
+      "price": 120
+    },
+    {
+      "code": "BMA0606",
+      "width": 6,
+      "roll": 6,
+      "price": 54
+    },
+    {
+      "code": "BMA0608",
+      "width": 6,
+      "roll": 8,
+      "price": 72
+    },
+    {
+      "code": "BMA0610",
+      "width": 6,
+      "roll": 10,
+      "price": 90
+    },
+    {
+      "code": "BMA0612",
+      "width": 6,
+      "roll": 12,
+      "price": 108
+    },
+    {
+      "code": "BMA0614",
+      "width": 6,
+      "roll": 14,
+      "price": 126
+    },
+    {
+      "code": "BMA0616",
+      "width": 6,
+      "roll": 16,
+      "price": 144
+    },
+    {
+      "code": "BMA0804",
+      "width": 8,
+      "roll": 4,
+      "price": 48
+    },
+    {
+      "code": "BMA0806",
+      "width": 8,
+      "roll": 6,
+      "price": 72
+    },
+    {
+      "code": "BMA0808",
+      "width": 8,
+      "roll": 8,
+      "price": 96
+    },
+    {
+      "code": "BMA0810",
+      "width": 8,
+      "roll": 10,
+      "price": 120
+    },
+    {
+      "code": "BMA0812",
+      "width": 8,
+      "roll": 12,
+      "price": 144
+    },
+    {
+      "code": "BMA0814",
+      "width": 8,
+      "roll": 14,
+      "price": 168
+    },
+    {
+      "code": "BMA0816",
+      "width": 8,
+      "roll": 16,
+      "price": 192
+    },
+    {
+      "code": "BMA1010",
+      "width": 10,
+      "roll": 10,
+      "price": 200
+    },
+    {
+      "code": "BMA1012",
+      "width": 10,
+      "roll": 12,
+      "price": 240
+    },
+    {
+      "code": "BMA1015",
+      "width": 10,
+      "roll": 15,
+      "price": 300
+    },
+    {
+      "code": "BMA1016",
+      "width": 10,
+      "roll": 16,
+      "price": 320
+    }
+  ],
+  "Hadar": [
+    {
+      "code": "BMH0406",
+      "width": 4,
+      "roll": 6,
+      "price": 45
+    },
+    {
+      "code": "BMH0508",
+      "width": 5,
+      "roll": 8,
+      "price": 70
+    },
+    {
+      "code": "BMH0510",
+      "width": 5,
+      "roll": 10,
+      "price": 80
+    },
+    {
+      "code": "BMH0512",
+      "width": 5,
+      "roll": 12,
+      "price": 90
+    },
+    {
+      "code": "BMH0514",
+      "width": 5,
+      "roll": 14,
+      "price": 100
+    },
+    {
+      "code": "BMH0516",
+      "width": 5,
+      "roll": 16,
+      "price": 125
+    },
+    {
+      "code": "BMH0608",
+      "width": 6,
+      "roll": 8,
+      "price": 75
+    },
+    {
+      "code": "BMH0610",
+      "width": 6,
+      "roll": 10,
+      "price": 90
+    },
+    {
+      "code": "BMH0612",
+      "width": 6,
+      "roll": 12,
+      "price": 105
+    },
+    {
+      "code": "BMH0614",
+      "width": 6,
+      "roll": 14,
+      "price": 120
+    },
+    {
+      "code": "BMH0616",
+      "width": 6,
+      "roll": 16,
+      "price": 150
+    },
+    {
+      "code": "BMH0808",
+      "width": 8,
+      "roll": 8,
+      "price": 95
+    },
+    {
+      "code": "BMH0810",
+      "width": 8,
+      "roll": 10,
+      "price": 115
+    },
+    {
+      "code": "BMH0812",
+      "width": 8,
+      "roll": 12,
+      "price": 135
+    },
+    {
+      "code": "BMH0814",
+      "width": 8,
+      "roll": 14,
+      "price": 155
+    },
+    {
+      "code": "BMH0816",
+      "width": 8,
+      "roll": 16,
+      "price": 200
+    }
+  ],
+  "Mehadrin": [
+    {
+      "code": "BMM0406",
+      "width": 4,
+      "roll": 6,
+      "price": 52
+    },
+    {
+      "code": "BMM0508",
+      "width": 5,
+      "roll": 8,
+      "price": 80
+    },
+    {
+      "code": "BMM0510",
+      "width": 5,
+      "roll": 10,
+      "price": 95
+    },
+    {
+      "code": "BMM0512",
+      "width": 5,
+      "roll": 12,
+      "price": 110
+    },
+    {
+      "code": "BMM0514",
+      "width": 5,
+      "roll": 14,
+      "price": 130
+    },
+    {
+      "code": "BMM0516",
+      "width": 5,
+      "roll": 16,
+      "price": 150
+    },
+    {
+      "code": "BMM0608",
+      "width": 6,
+      "roll": 8,
+      "price": 90
+    },
+    {
+      "code": "BMM0610",
+      "width": 6,
+      "roll": 10,
+      "price": 110
+    },
+    {
+      "code": "BMM0612",
+      "width": 6,
+      "roll": 12,
+      "price": 120
+    },
+    {
+      "code": "BMM0614",
+      "width": 6,
+      "roll": 14,
+      "price": 150
+    },
+    {
+      "code": "BMM0616",
+      "width": 6,
+      "roll": 16,
+      "price": 175
+    },
+    {
+      "code": "BMM0808",
+      "width": 8,
+      "roll": 8,
+      "price": 115
+    },
+    {
+      "code": "BMM0810",
+      "width": 8,
+      "roll": 10,
+      "price": 140
+    },
+    {
+      "code": "BMM0812",
+      "width": 8,
+      "roll": 12,
+      "price": 160
+    },
+    {
+      "code": "BMM0814",
+      "width": 8,
+      "roll": 14,
+      "price": 200
+    },
+    {
+      "code": "BMM0816",
+      "width": 8,
+      "roll": 16,
+      "price": 225
+    }
+  ],
+  "Kaynus": [
+    {
+      "code": "BMK0406",
+      "width": 4,
+      "roll": 6,
+      "price": 55
+    },
+    {
+      "code": "BMK0504",
+      "width": 5,
+      "roll": 4,
+      "price": 50
+    },
+    {
+      "code": "BMK0508",
+      "width": 5,
+      "roll": 8,
+      "price": 80
+    },
+    {
+      "code": "BMK0510",
+      "width": 5,
+      "roll": 10,
+      "price": 100
+    },
+    {
+      "code": "BMK0512",
+      "width": 5,
+      "roll": 12,
+      "price": 115
+    },
+    {
+      "code": "BMK0608",
+      "width": 6,
+      "roll": 8,
+      "price": 100
+    },
+    {
+      "code": "BMK0610",
+      "width": 6,
+      "roll": 10,
+      "price": 115
+    },
+    {
+      "code": "BMK0612",
+      "width": 6,
+      "roll": 12,
+      "price": 140
+    },
+    {
+      "code": "BMK0808",
+      "width": 8,
+      "roll": 8,
+      "price": 125
+    },
+    {
+      "code": "BMK0810",
+      "width": 8,
+      "roll": 10,
+      "price": 150
+    },
+    {
+      "code": "BMK0812",
+      "width": 8,
+      "roll": 12,
+      "price": 175
+    }
+  ]
+}

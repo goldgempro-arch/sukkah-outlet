@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:\\\\Users\\\\ycsgo\\\\Downloads\\\\sukkah_extracted\" && find src -type f -name \"*.ts\" -o -name \"*.tsx\" | head -40)",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
