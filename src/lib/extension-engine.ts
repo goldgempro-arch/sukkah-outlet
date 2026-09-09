@@ -167,18 +167,6 @@ export const CONFIRMED_BAMBOO: Record<string, BambooEntry> = {
 
 export const MAX_SHORT_SIDE_FOR_FLOWER = 12;
 
-function count10ftAlignedJoints(frame: number[]): number {
-  let count = 0;
-  let pos = 0;
-  for (let i = 0; i < frame.length - 1; i++) {
-    pos += frame[i];
-    if (pos % 10 === 0) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
 export interface FlowerPostInfo {
   needed: boolean;
   numPosts: number;
@@ -186,6 +174,14 @@ export interface FlowerPostInfo {
   extraAdjNeeded: number;
 }
 
+/** A flower post is needed whenever MORE THAN ONE side is over 12' --
+ *  i.e. both the short side and the long side exceed 12' (owner-confirmed:
+ *  12x24/12x36 -> no flower since only the long side is over 12; 15x15,
+ *  16x16, 18x18, 18x16, 15x20, 20x20 -> flower since both sides are).
+ *  Uses each wall's RAW interior-joint count (frame.length - 1), not just
+ *  joints landing on an exact 10-ft mark -- a 16' wall splits into [8, 8],
+ *  a real joint at 8' that still needs a flower-post connection even
+ *  though it isn't a round 10-ft number. */
 export function flowerPostInfo(
   length: number,
   width: number,
@@ -193,16 +189,15 @@ export function flowerPostInfo(
 ): FlowerPostInfo {
   const shortSide = Math.min(length, width);
   const longSide = Math.max(length, width);
-  const maxLong = productLine === "DELUXE" ? 24 : 20;
 
-  if (!(shortSide > MAX_SHORT_SIDE_FOR_FLOWER && longSide > maxLong)) {
+  if (!(shortSide > MAX_SHORT_SIDE_FOR_FLOWER && longSide > MAX_SHORT_SIDE_FOR_FLOWER)) {
     return { needed: false, numPosts: 0, postCode: null, extraAdjNeeded: 0 };
   }
 
   const [longFrame] = splitWallFrame(longSide);
   const [shortFrame] = splitWallFrame(shortSide);
-  const jLong = count10ftAlignedJoints(longFrame);
-  const jShort = count10ftAlignedJoints(shortFrame);
+  const jLong = longFrame.length - 1;
+  const jShort = shortFrame.length - 1;
   if (jLong <= 0) {
     return { needed: false, numPosts: 0, postCode: null, extraAdjNeeded: 0 };
   }
@@ -212,9 +207,7 @@ export function flowerPostInfo(
   const postCode = productLine === "DELUXE" ? "DLFP" : "SYFP";
   const totalAdjForFlower = jShortEff * (jLong + 1) + jLong * (jShortEff + 1);
 
-  const rawJLong = longFrame.length - 1;
-  const rawJShort = shortFrame.length - 1;
-  const normalAdjustor = Math.max(rawJLong, rawJShort);
+  const normalAdjustor = Math.max(jLong, jShort);
   const extraAdjNeeded = Math.max(0, totalAdjForFlower - normalAdjustor);
 
   return { needed: true, numPosts, postCode, extraAdjNeeded };

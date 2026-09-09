@@ -34,9 +34,33 @@ function PanZoomSurface({ children, label, gated = false, onExpand }: { children
   const viewportRef = useRef<HTMLDivElement>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const dragOrigin = useRef<{ x: number; y: number; transform: Transform } | null>(null);
-  const pinchDistance = useRef<number | null>(null);
+  // Anchored to the pinch's START distance/scale (captured once when the
+  // 2nd finger goes down) rather than recomputed incrementally frame to
+  // frame -- touch-sensor noise in one frame no longer compounds into the
+  // next, which was the main source of jittery/erratic tablet pinch-zoom.
+  const pinchAnchor = useRef<{ distance: number; scale: number } | null>(null);
   const transformRef = useRef<Transform>({ scale: 1, x: 0, y: 0 });
   const [transform, setTransform] = useState<Transform>(transformRef.current);
+
+  // Batches pan/zoom updates to at most once per animation frame -- a
+  // touchscreen can fire pointermove far faster than the screen can
+  // usefully redraw, and applying every single one as its own React
+  // state update/render was the other source of jank on tablets.
+  const pendingFrame = useRef<number | null>(null);
+  const pendingAction = useRef<(() => void) | null>(null);
+  const scheduleUpdate = useCallback((action: () => void) => {
+    pendingAction.current = action;
+    if (pendingFrame.current != null) return;
+    pendingFrame.current = requestAnimationFrame(() => {
+      pendingFrame.current = null;
+      pendingAction.current?.();
+    });
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (pendingFrame.current != null) cancelAnimationFrame(pendingFrame.current);
+    };
+  }, []);
 
   const update = useCallback((next: Transform) => {
     const safe = { scale: clamp(next.scale, 0.5, 6), x: next.x, y: next.y };
@@ -90,7 +114,12 @@ function PanZoomSurface({ children, label, gated = false, onExpand }: { children
       const points = [...pointers.current.values()];
       const first = points[0];
       const second = points[1];
-      if (first && second) pinchDistance.current = Math.hypot(first.x - second.x, first.y - second.y);
+      if (first && second) {
+        pinchAnchor.current = {
+          distance: Math.hypot(first.x - second.x, first.y - second.y),
+          scale: transformRef.current.scale,
+        };
+      }
     }
   };
 
@@ -99,11 +128,14 @@ function PanZoomSurface({ children, label, gated = false, onExpand }: { children
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     const points = [...pointers.current.values()];
     if (points.length === 1 && dragOrigin.current) {
-      update({
-        ...dragOrigin.current.transform,
-        x: dragOrigin.current.transform.x + event.clientX - dragOrigin.current.x,
-        y: dragOrigin.current.transform.y + event.clientY - dragOrigin.current.y,
-      });
+      const origin = dragOrigin.current;
+      scheduleUpdate(() =>
+        update({
+          ...origin.transform,
+          x: origin.transform.x + event.clientX - origin.x,
+          y: origin.transform.y + event.clientY - origin.y,
+        }),
+      );
     } else if (points.length === 2) {
       const first = points[0];
       const second = points[1];
@@ -111,8 +143,10 @@ function PanZoomSurface({ children, label, gated = false, onExpand }: { children
       const distance = Math.hypot(first.x - second.x, first.y - second.y);
       const centerX = (first.x + second.x) / 2;
       const centerY = (first.y + second.y) / 2;
-      if (pinchDistance.current) zoomAt(transformRef.current.scale * (distance / pinchDistance.current), centerX, centerY);
-      pinchDistance.current = distance;
+      const anchor = pinchAnchor.current;
+      if (anchor) {
+        scheduleUpdate(() => zoomAt(anchor.scale * (distance / anchor.distance), centerX, centerY));
+      }
       // A deliberate two-finger pinch counts as activation -- so if the user
       // lifts one finger afterward, single-finger pan works immediately
       // without requiring a separate tap first.
@@ -122,7 +156,7 @@ function PanZoomSurface({ children, label, gated = false, onExpand }: { children
 
   const releasePointer = (event: PointerEvent<HTMLDivElement>) => {
     pointers.current.delete(event.pointerId);
-    if (pointers.current.size < 2) pinchDistance.current = null;
+    if (pointers.current.size < 2) pinchAnchor.current = null;
     if (pointers.current.size === 0) dragOrigin.current = null;
   };
 
