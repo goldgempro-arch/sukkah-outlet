@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FedEx Invoice Audit</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c2024; --muted:#667; --line:#e2e5ea; --bad:#b42318; --badbg:#fef3f2; --good:#067647; --goodbg:#ecfdf3; --warn:#b54708; --accent:#4d148c; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14161a; --card:#1d2025; --text:#e8eaed; --muted:#9aa0aa; --line:#2e3239; --bad:#f97066; --badbg:#3a1c1a; --good:#47cd89; --goodbg:#12301f; --warn:#fdb022; --accent:#b692f6; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  main { max-width:1200px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:17px; margin:28px 0 8px; }
+  p.sub { margin:0 0 18px; color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  #drop { border:2px dashed var(--line); border-radius:10px; padding:28px; text-align:center; cursor:pointer; background:var(--card); }
+  #drop.over { border-color:var(--accent); }
+  #drop b { color:var(--accent); }
+  #files { margin:10px 0 0; font-size:13px; color:var(--muted); }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:12px 0; }
+  label { font-size:13px; color:var(--muted); }
+  input[type=number] { width:80px; padding:5px 7px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--text); }
+  button { padding:8px 14px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-weight:600; cursor:pointer; }
+  button.secondary { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:16px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  .stat .n { font-size:24px; font-weight:700; } .stat .l { font-size:12px; color:var(--muted); }
+  .bad { color:var(--bad); } .good { color:var(--good); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { padding:7px 8px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+  th { font-size:12px; color:var(--muted); position:sticky; top:0; background:var(--card); cursor:pointer; white-space:nowrap; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .tablewrap { overflow:auto; max-height:70vh; background:var(--card); border:1px solid var(--line); border-radius:10px; }
+  .tag { display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px; background:var(--badbg); color:var(--bad); margin:1px 3px 1px 0; white-space:nowrap; }
+  .tag.w { background:var(--card); border:1px solid var(--line); color:var(--warn); }
+  .hide { display:none; } .err { color:var(--bad); }
+  details { margin-top:14px; } summary { cursor:pointer; color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>FedEx invoice audit</h1>
+  <p class="sub">Compares what ShipRush quoted with what FedEx actually billed. Everything runs in your browser — files are not uploaded anywhere.</p>
+
+  <div id="drop"><b>Drop files here</b> or click to choose<br>
+    <span style="color:var(--muted);font-size:13px">One or more ShipRush reports (.xlsx/.csv) and the FedEx invoice detail (.xlsx/.csv). Order doesn't matter.</span>
+    <input id="picker" type="file" multiple accept=".xlsx,.xls,.csv" class="hide">
+  </div>
+  <div id="files"></div>
+  <div id="msg" class="err"></div>
+
+  <div id="out" class="hide">
+    <div class="row">
+      <label>Ignore differences under $ <input id="tol" type="number" min="0" step="0.25" value="0.50"></label>
+      <label><input id="onlyOver" type="checkbox"> only show overcharges</label>
+      <button id="csv">Download dispute list (CSV)</button>
+    </div>
+    <div class="stats" id="stats"></div>
+
+    <h2>Shipments where FedEx billed a different amount than ShipRush quoted</h2>
+    <div class="tablewrap"><table id="tbl"></table></div>
+
+    <details><summary id="unmS"></summary><div id="unm" class="card" style="margin-top:8px"></div></details>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const num = v => { if (v === '' || v == null) return 0; const n = parseFloat(String(v).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; };
+const money = n => (n < 0 ? '-' : '') + '$' + Math.abs(n).toFixed(2);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const tid = v => String(v ?? '').replace(/\.0$/, '').trim();
+
+// FedEx charge descriptions that are normally ones you'd want to question
+const SURCHARGE_FLAG = /oversize|add'?l handling|additional handling|large package|address correction|delivery area|^das|residential|saturday|demand|signature|declared value|duplicate|adjust/i;
+const NORMAL = /^(fuel surcharge|discount|grace discount|earned discount|performance pricing|residential delivery|weekday delivery)$/i;
+
+let state = { sr: [], fx: [], rows: [], unmatchedSR: [], unmatchedFX: [], hasFX: false };
+
+async function readFile(file) {
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false });
+  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: true });
+}
+
+async function handleFiles(list) {
+  $('msg').textContent = '';
+  state = { sr: [], fx: [], rows: [], unmatchedSR: [], unmatchedFX: [], hasFX: false };
+  const names = [];
+  for (const f of list) {
+    try {
+      const rows = await readFile(f);
+      const head = (rows[0] || []).map(String);
+      if (head.includes('Shipment Tracking Number')) {
+        const idx = k => head.indexOf(k);
+        const iT = idx('Shipment Tracking Number'), iC = idx('Shipment Shipping Charges'), iW = idx('Package Weight'),
+              iD = idx('Shipment Date'), iS = idx('Shipment Service'), iR = idx('Order Number'),
+              iN = head.indexOf('Ship To LastName'), iZ = head.indexOf('Ship To PostalCode'),
+              iL = idx('Package Size Length'), iWd = idx('Package Size Width'), iH = idx('Package Size Height'),
+              iSur = idx('Shipment Surcharges');
+        let n = 0;
+        for (const r of rows.slice(1)) {
+          if (!r[iT]) continue; n++;
+          state.sr.push({ track: tid(r[iT]), quote: num(r[iC]), surch: num(r[iSur]), weight: num(r[iW]), date: r[iD], svc: r[iS],
+                          order: r[iR], name: r[iN], zip: r[iZ], dims: [r[iL], r[iWd], r[iH]].join('×') });
+        }
+        names.push(`${f.name} — ShipRush, ${n} rows`);
+      } else if (head.includes('Express or Ground Tracking ID')) {
+        const idx = k => head.indexOf(k);
+        const cD = head.map((h, i) => h === 'Tracking ID Charge Description' ? i : -1).filter(i => i >= 0);
+        const I = { inv: idx('Invoice Number'), invDate: idx('Invoice Date'), t: idx('Express or Ground Tracking ID'), master: idx('TDMasterTrackingID'),
+                    net: idx('Net Charge Amount'), svc: idx('Service Type'), gsvc: idx('Ground Service'), rated: idx('Rated Weight Amount'),
+                    act: idx('Actual Weight Amount'), ship: idx('Shipment Date'), name: idx('Recipient Name') };
+        let n = 0;
+        for (const r of rows.slice(1)) {
+          if (!r[I.t] || r[I.net] === '' ) continue; // only the main charge row of each package
+          n++;
+          const charges = cD.map(i => [r[i], num(r[i + 1])]).filter(c => c[0]);
+          state.fx.push({ inv: r[I.inv], invDate: r[I.invDate], track: tid(r[I.t]), master: tid(r[I.master]) || tid(r[I.t]),
+                          net: num(r[I.net]), svc: r[I.gsvc] || r[I.svc], rated: num(r[I.rated]), ship: r[I.ship], charges });
+        }
+        state.hasFX = true;
+        names.push(`${f.name} — FedEx invoice, ${n} packages`);
+      } else {
+        names.push(`${f.name} — not recognized (skipped)`);
+      }
+    } catch (e) { $('msg').textContent = `Could not read ${f.name}: ${e.message}`; }
+  }
+  $('files').innerHTML = names.map(esc).join('<br>');
+  analyze();
+}
+
+function analyze() {
+  if (!state.sr.length || !state.fx.length) { $('out').classList.add('hide'); return; }
+  // ShipRush: one shipment per tracking number; the shipment charge repeats on each package row
+  const sr = new Map();
+  for (const r of state.sr) {
+    const s = sr.get(r.track);
+    if (!s) sr.set(r.track, { ...r, pkgs: 1, totalWeight: r.weight, dimsAll: [r.dims] });
+    else { s.pkgs++; s.totalWeight += r.weight; s.dimsAll.push(r.dims); }
+  }
+  // FedEx: group packages under the master tracking number; de-dupe repeated rows
+  const fx = new Map(), seen = new Set();
+  for (const r of state.fx) {
+    const key = r.inv + '|' + r.track; if (seen.has(key)) continue; seen.add(key);
+    let g = fx.get(r.master);
+    if (!g) fx.set(r.master, g = { master: r.master, invs: new Set(), net: 0, rated: 0, pkgs: 0, charges: new Map(), svc: r.svc, ship: r.ship });
+    g.invs.add(r.inv); g.net += r.net; g.rated += r.rated; g.pkgs++;
+    for (const [d, a] of r.charges) g.charges.set(d, (g.charges.get(d) || 0) + a);
+  }
+  state.rows = []; state.unmatchedSR = []; state.unmatchedFX = [];
+  for (const [t, s] of sr) {
+    const f = fx.get(t);
+    if (!f) { state.unmatchedSR.push(s); continue; }
+    const flags = [];
+    for (const [d, a] of f.charges) if (SURCHARGE_FLAG.test(d) && !NORMAL.test(d) && a !== 0) flags.push(`${d} ${money(a)}`);
+    state.rows.push({ track: t, order: s.order, name: s.name, date: s.date, svc: s.svc, quote: s.quote, billed: f.net, diff: f.net - s.quote,
+                      shipWt: s.totalWeight, billWt: f.rated, pkgsSR: s.pkgs, pkgsFX: f.pkgs, dims: s.dimsAll.join(' / '),
+                      inv: [...f.invs].join(','), flags });
+  }
+  for (const [t, f] of fx) if (!sr.has(t)) state.unmatchedFX.push(f);
+  $('out').classList.remove('hide');
+  render();
+}
+
+let sortKey = 'diff', sortDir = -1;
+function visible() {
+  const tol = num($('tol').value), only = $('onlyOver').checked;
+  return state.rows.filter(r => only ? r.diff > tol : Math.abs(r.diff) > tol);
+}
+function render() {
+  const rows = visible().sort((a, b) => (a[sortKey] > b[sortKey] ? 1 : -1) * sortDir);
+  const over = rows.filter(r => r.diff > 0).reduce((s, r) => s + r.diff, 0);
+  const under = rows.filter(r => r.diff < 0).reduce((s, r) => s + r.diff, 0);
+  const quoted = state.rows.reduce((s, r) => s + r.quote, 0), billed = state.rows.reduce((s, r) => s + r.billed, 0);
+  $('stats').innerHTML = [
+    ['Matched shipments', state.rows.length, ''],
+    ['Total quoted', money(quoted), ''],
+    ['Total billed', money(billed), ''],
+    ['Billed more than quoted', money(over), over > 0 ? 'bad' : 'good'],
+    ['Billed less than quoted', money(under), ''],
+    ['Shipments off', rows.length, rows.length ? 'bad' : 'good'],
+  ].map(([l, n, c]) => `<div class="stat"><div class="n ${c}">${n}</div><div class="l">${l}</div></div>`).join('');
+  const cols = [['track','Tracking'],['order','Order'],['name','Recipient'],['date','Shipped'],['quote','Quoted','num'],['billed','Billed','num'],['diff','Difference','num'],
+                ['shipWt','Ship wt','num'],['billWt','Billed wt','num'],['flags','Why (FedEx charges to question)'],['inv','Invoice']];
+  $('tbl').innerHTML = '<thead><tr>' + cols.map(([k, l, c]) => `<th data-k="${k}" class="${c || ''}">${l}${sortKey === k ? (sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('') + '</tr></thead><tbody>' +
+    rows.map(r => {
+      const wtTag = r.pkgsSR === 1 && r.pkgsFX === 1 && r.billWt > r.shipWt + 0.5 ? `<span class="tag w">billed ${r.billWt} lb vs shipped ${r.shipWt} lb</span>` : '';
+      const pkTag = r.pkgsFX !== r.pkgsSR ? `<span class="tag w">${r.pkgsSR} pkg in ShipRush, ${r.pkgsFX} billed</span>` : '';
+      return `<tr><td>${esc(r.track)}</td><td>${esc(r.order)}</td><td>${esc(r.name)}</td><td>${esc(fmtDate(r.date))}</td>
+        <td class="num">${money(r.quote)}</td><td class="num">${money(r.billed)}</td><td class="num ${r.diff > 0 ? 'bad' : 'good'}">${money(r.diff)}</td>
+        <td class="num">${r.shipWt}</td><td class="num">${r.billWt}</td>
+        <td>${r.flags.map(f => `<span class="tag">${esc(f)}</span>`).join('')}${wtTag}${pkTag}</td><td>${esc(r.inv)}</td></tr>`;
+    }).join('') + '</tbody>';
+  $('tbl').querySelectorAll('th').forEach(th => th.onclick = () => { const k = th.dataset.k; sortDir = sortKey === k ? -sortDir : -1; sortKey = k; render(); });
+  const uS = state.unmatchedSR, uF = state.unmatchedFX;
+  $('unmS').textContent = `${uS.length} ShipRush shipments not on this invoice · ${uF.length} FedEx shipments not in the ShipRush files`;
+  $('unm').innerHTML = `<b>In ShipRush but not on the FedEx invoice</b> (probably on another invoice, or not billed yet):<br>` +
+    (uS.map(s => `${esc(s.track)} (${money(s.quote)}, ${esc(fmtDate(s.date))})`).join('<br>') || 'none') +
+    `<br><br><b>On the FedEx invoice but not in the ShipRush files</b> (shipped outside ShipRush, or outside the date range you exported):<br>` +
+    (uF.slice(0, 200).map(f => `${esc(f.master)} (${money(f.net)}, ${esc(f.svc)})`).join('<br>') || 'none') + (uF.length > 200 ? `<br>…and ${uF.length - 200} more` : '');
+}
+function fmtDate(d) {
+  if (typeof d === 'number') { const dt = new Date(Math.round((d - 25569) * 86400000)); return dt.toISOString().slice(0, 10); }
+  return String(d ?? '').slice(0, 10);
+}
+
+$('tol').oninput = $('onlyOver').onchange = render;
+$('csv').onclick = () => {
+  const head = ['Tracking','Order','Recipient','Shipped','Quoted','Billed','Difference','Shipped weight','Billed weight','Charges to question','Invoice'];
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const lines = [head.map(q).join(',')].concat(visible().filter(r => r.diff > 0).sort((a, b) => b.diff - a.diff).map(r =>
+    [r.track, r.order, r.name, fmtDate(r.date), r.quote.toFixed(2), r.billed.toFixed(2), r.diff.toFixed(2), r.shipWt, r.billWt, r.flags.join('; '), r.inv].map(q).join(',')));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+  a.download = 'fedex-overcharges.csv'; a.click();
+};
+const drop = $('drop');
+drop.onclick = () => $('picker').click();
+$('picker').onchange = e => handleFiles([...e.target.files]);
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); handleFiles([...e.dataTransfer.files]); };
+</script>
+</body>
+</html>
