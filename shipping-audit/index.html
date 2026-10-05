@@ -144,8 +144,8 @@ function analyze() {
   for (const r of state.fx) {
     const key = r.inv + '|' + r.track; if (seen.has(key)) continue; seen.add(key);
     let g = fx.get(r.master);
-    if (!g) fx.set(r.master, g = { master: r.master, invs: new Set(), net: 0, rated: 0, pkgs: 0, charges: new Map(), svc: r.svc, ship: r.ship });
-    g.invs.add(r.inv); g.net += r.net; g.rated += r.rated; g.pkgs++;
+    if (!g) fx.set(r.master, g = { master: r.master, tracks: [], invs: new Set(), net: 0, rated: 0, pkgs: 0, charges: new Map(), svc: r.svc, ship: r.ship });
+    g.tracks.push(r.track); g.invs.add(r.inv); g.net += r.net; g.rated += r.rated; g.pkgs++;
     for (const [d, a] of r.charges) g.charges.set(d, (g.charges.get(d) || 0) + a);
   }
   state.rows = []; state.unmatchedSR = []; state.unmatchedFX = [];
@@ -156,7 +156,7 @@ function analyze() {
     for (const [d, a] of f.charges) if (SURCHARGE_FLAG.test(d) && !NORMAL.test(d) && a !== 0) flags.push(`${d} ${money(a)}`);
     state.rows.push({ track: t, order: s.order, name: s.name, date: s.date, svc: s.svc, quote: s.quote, billed: f.net, diff: f.net - s.quote,
                       shipWt: s.totalWeight, billWt: f.rated, pkgsSR: s.pkgs, pkgsFX: f.pkgs, dims: s.dimsAll.join(' / '),
-                      inv: [...f.invs].join(','), flags });
+                      inv: [...f.invs].join(','), tracks: f.tracks, flags });
   }
   for (const [t, f] of fx) if (!sr.has(t)) state.unmatchedFX.push(f);
   $('out').classList.remove('hide');
@@ -194,7 +194,7 @@ function render() {
     rows.map(r => {
       const wtTag = r.pkgsSR === 1 && r.pkgsFX === 1 && r.billWt > r.shipWt + 0.5 ? `<span class="tag w">billed ${r.billWt} lb vs shipped ${r.shipWt} lb</span>` : '';
       const pkTag = r.pkgsFX !== r.pkgsSR ? `<span class="tag w">${r.pkgsSR} pkg in ShipRush, ${r.pkgsFX} billed</span>` : '';
-      return `<tr><td>${esc(r.track)}</td><td>${esc(r.order)}</td><td>${esc(r.name)}</td><td>${esc(fmtDate(r.date))}</td>
+      return `<tr><td>${r.tracks.map(esc).join('<br>')}</td><td>${esc(r.order)}</td><td>${esc(r.name)}</td><td>${esc(fmtDate(r.date))}</td>
         <td class="num">${money(r.quote)}</td><td class="num">${money(r.billed)}</td><td class="num ${r.diff > 0 ? 'bad' : 'good'}">${money(r.diff)}</td>
         <td class="num">${r.shipWt}</td><td class="num">${r.billWt}</td>
         <td>${r.flags.map(f => `<span class="tag">${esc(f)}</span>`).join('')}${wtTag}${pkTag}</td><td>${esc(r.inv)}</td></tr>`;
@@ -213,11 +213,13 @@ function fmtDate(d) {
 }
 
 $('tol').oninput = $('onlyOver').onchange = render;
+function Txt(s) { this.s = s; }
+const txt = s => new Txt(s);
 $('csv').onclick = () => {
   const head = ['Tracking','Order','Recipient','Shipped','Quoted','Billed','Difference','Ship wt','Billed wt','Why (FedEx charges to question)','Invoice'];
-  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const q = v => v instanceof Txt ? '="' + v.s + '"' : '"' + String(v ?? '').replace(/"/g, '""') + '"';
   const lines = [head.map(q).join(',')].concat(sortedRows().map(r =>
-    [r.track, r.order, r.name, fmtDate(r.date), r.quote.toFixed(2), r.billed.toFixed(2), r.diff.toFixed(2), r.shipWt, r.billWt, notes(r).join('; '), r.inv].map(q).join(',')));
+    [txt(r.tracks.join(' ')), r.order, r.name, fmtDate(r.date), r.quote.toFixed(2), r.billed.toFixed(2), r.diff.toFixed(2), r.shipWt, r.billWt, notes(r).join('; '), r.inv].map(q).join(',')));
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv' }));
   a.download = 'fedex-audit.csv'; a.click();
 };
