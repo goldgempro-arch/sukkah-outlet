@@ -145,7 +145,7 @@ function analyze() {
     const key = r.inv + '|' + r.track; if (seen.has(key)) continue; seen.add(key);
     let g = fx.get(r.master);
     if (!g) fx.set(r.master, g = { master: r.master, tracks: [], invs: new Set(), net: 0, rated: 0, pkgs: 0, charges: new Map(), svc: r.svc, ship: r.ship });
-    g.tracks.push(r.track); g.invs.add(r.inv); g.net += r.net; g.rated += r.rated; g.pkgs++;
+    if (!g.tracks.includes(r.track)) g.tracks.push(r.track); g.invs.add(r.inv); g.net += r.net; g.rated += r.rated; g.pkgs++;
     for (const [d, a] of r.charges) g.charges.set(d, (g.charges.get(d) || 0) + a);
   }
   state.rows = []; state.unmatchedSR = []; state.unmatchedFX = [];
