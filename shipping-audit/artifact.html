@@ -1,0 +1,511 @@
+<title>FedEx Overcharge Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  /* Layout: one working column. Audit picker bar, upload strip, money summary, filter chips, ledger table. */
+  :root {
+    --bg:#f2f3f5; --card:#ffffff; --ink:#171b22; --muted:#667085; --line:#dfe2e8; --accent:#2d4f8e; --accent-ink:#ffffff;
+    --bad:#b42318; --bad-bg:#fdecea; --good:#067647; --good-bg:#e6f4ec; --warn:#a15c07; --warn-bg:#fdf1dc; --row-alt:#f8f9fb;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#13161b; --card:#1b1f26; --ink:#e8eaee; --muted:#9aa2b1; --line:#2c323c; --accent:#8fb0ee; --accent-ink:#0f1722;
+    --bad:#f97066; --bad-bg:#3b1d1a; --good:#47cd89; --good-bg:#12301f; --warn:#f5b84a; --warn-bg:#3a2a0c; --row-alt:#1f242c; color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg:#13161b; --card:#1b1f26; --ink:#e8eaee; --muted:#9aa2b1; --line:#2c323c; --accent:#8fb0ee; --accent-ink:#0f1722;
+    --bad:#f97066; --bad-bg:#3b1d1a; --good:#47cd89; --good-bg:#12301f; --warn:#f5b84a; --warn-bg:#3a2a0c; --row-alt:#1f242c; color-scheme: dark; }
+  body { background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:14px; line-height:1.45; }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  .wrap { max-width:1280px; margin:0 auto; padding-inline:16px; padding-block:18px 60px; display:flex; flex-direction:column; gap:14px; }
+  h1 { font-size:20px; margin:0; font-weight:600; letter-spacing:-.01em; }
+  .top { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; justify-content:space-between; }
+  .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+  .banner { background:var(--warn-bg); color:var(--warn); border:1px solid var(--line); border-radius:8px; padding:8px 12px; }
+  .err { color:var(--bad); min-height:1.2em; }
+  label { color:var(--muted); font-size:13px; display:inline-flex; align-items:center; gap:6px; }
+  select, input[type=text], input[type=number] { font:inherit; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:6px; padding:6px 8px; min-width:0; }
+  input[type=number] { width:84px; }
+  button { font:inherit; font-weight:500; border-radius:6px; padding:7px 12px; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); cursor:pointer; }
+  button.ghost { background:transparent; color:var(--accent); }
+  button.danger { background:transparent; color:var(--bad); border-color:var(--bad); }
+  button:disabled { opacity:.45; cursor:default; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  #drop { border:1.5px dashed var(--line); border-radius:8px; padding:16px; text-align:center; cursor:pointer; background:var(--card); color:var(--muted); }
+  #drop.over { border-color:var(--accent); color:var(--ink); }
+  #drop b { color:var(--accent); font-weight:600; }
+  .sum { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .sum .cell { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 12px; min-width:0; }
+  .sum .v { font-family:var(--mono); font-size:20px; font-weight:500; }
+  .sum .l { font-size:12px; color:var(--muted); }
+  .bad { color:var(--bad); } .good { color:var(--good); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:99px; padding:4px 11px; font-size:13px; }
+  .chip[aria-pressed=true] { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .tablewrap { overflow:auto; max-height:72vh; background:var(--card); border:1px solid var(--line); border-radius:8px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:7px 9px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+  th { position:sticky; top:0; background:var(--card); color:var(--muted); font-size:12px; font-weight:500; white-space:nowrap; z-index:1; cursor:pointer; }
+  tr:nth-child(even) td { background:var(--row-alt); }
+  tr.acc td { color:var(--muted); }
+  .num { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .trk { font-family:var(--mono); font-size:12px; white-space:nowrap; }
+  .tag { display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px; background:var(--bad-bg); color:var(--bad); margin:1px 3px 1px 0; white-space:nowrap; }
+  .tag.w { background:var(--warn-bg); color:var(--warn); }
+  td input[type=text] { width:150px; } td input[type=number] { width:78px; text-align:right; } td select { max-width:112px; }
+  input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent); }
+  .who { font-size:11px; color:var(--muted); }
+  details summary { cursor:pointer; color:var(--muted); }
+  .empty { padding:28px 16px; text-align:center; color:var(--muted); }
+  .confirm { display:inline-flex; gap:6px; align-items:center; }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <h1>FedEx Overcharge Ledger</h1>
+    <div class="bar" id="pickerBar">
+      <label>Audit <select id="audit" aria-label="Audit"></select></label>
+      <button class="ghost" id="newBtn">New audit</button>
+      <span id="newForm" class="bar" hidden>
+        <input type="text" id="newName" placeholder="e.g. Sept 2026 invoices" aria-label="New audit name">
+        <input type="number" id="newYear" aria-label="Year" min="2000" max="2100">
+        <button id="newOk">Create</button><button class="ghost" id="newNo">Cancel</button>
+      </span>
+    </div>
+  </div>
+  <div id="banner" class="banner" hidden></div>
+  <div id="msg" class="err" role="status"></div>
+
+  <div id="drop" tabindex="0" role="button" aria-label="Add ShipRush and FedEx files">
+    <b>Drop ShipRush and FedEx files here</b> or click to choose. New files are added to this audit and remembered.
+    <input id="picker" type="file" multiple accept=".xlsx,.xls,.csv" hidden>
+  </div>
+  <div id="files" class="who"></div>
+
+  <div id="out" hidden>
+    <div class="sum" id="sum"></div>
+    <div class="top" style="margin-top:2px">
+      <div class="chips" id="chips"></div>
+      <div class="bar">
+        <label>Ignore under $ <input id="tol" type="number" min="0" step="0.25" value="0.50"></label>
+        <label><input id="inclAcc" type="checkbox"> include accepted in reports</label>
+      </div>
+    </div>
+    <div class="bar">
+      <button id="pdf">PDF report</button>
+      <button id="xlsx" class="ghost">Excel report</button>
+      <button id="csv" class="ghost">CSV</button>
+      <button id="backup" class="ghost">Back up audit</button>
+      <button id="restore" class="ghost">Restore backup</button>
+      <input id="restoreFile" type="file" accept=".json" hidden>
+      <span id="delArea" class="confirm"></span>
+    </div>
+    <div class="tablewrap" id="tw"><table id="tbl"></table></div>
+    <details><summary id="unmS"></summary><div id="unm" class="card" style="margin-top:8px"></div></details>
+  </div>
+  <div id="emptyState" class="card empty">No audit open yet. Create one, then drop in the ShipRush reports and the FedEx invoice.</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const num = v => { if (v === '' || v == null) return 0; const n = parseFloat(String(v).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; };
+const money = n => (n < 0 ? '-' : '') + '$' + Math.abs(n).toFixed(2);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const tid = v => String(v ?? '').replace(/\.0$/, '').trim();
+const wt = n => n ? n + ' lb' : '';
+const safeGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const safeSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+function fmtDate(d) {
+  if (typeof d === 'number') return new Date(Math.round((d - 25569) * 86400000)).toISOString().slice(0, 10);
+  return String(d ?? '').slice(0, 10);
+}
+const SURCHARGE_FLAG = /oversize|add'?l handling|additional handling|large package|address correction|delivery area|^das|residential|saturday|demand|signature|declared value|duplicate|adjust/i;
+const NORMAL = /^(fuel surcharge|discount|grace discount|earned discount|performance pricing|residential delivery|weekday delivery)$/i;
+const CHUNK = 150;
+
+let db = null, userNS = null, dl = null, canWrite = true, myId = null;
+const S = { audits: [], id: null, sr: [], fx: [], status: new Map(), rows: [], unS: [], unF: [], names: {}, unsubStatus: null,
+            filter: 'all', sortKey: 'diff', sortDir: -1, busy: false, firstLoad: true };
+
+/* ---------- storage ---------- */
+const auditsCol = () => db.collection('audits');
+const chunkPath = (id, kind, n) => `audits/${id}/${kind}/${n}`;
+async function writeChunks(id, kind, rows) {
+  const n = Math.ceil(rows.length / CHUNK);
+  for (let i = 0; i < n; i++) await db.doc(chunkPath(id, kind, i)).set({ rows: rows.slice(i * CHUNK, (i + 1) * CHUNK) });
+  const old = await db.collection(`audits/${id}/${kind}`).get();
+  for (const d of old.docs) if (Number(d.id) >= n) await db.doc(chunkPath(id, kind, d.id)).delete();
+}
+async function readChunks(id, kind) {
+  const snap = await db.collection(`audits/${id}/${kind}`).get();
+  return snap.docs.slice().sort((a, b) => Number(a.id) - Number(b.id)).flatMap(d => d.data().rows || []);
+}
+function totals() {
+  const tol = num($('tol').value);
+  const over = S.rows.filter(r => r.diff > tol);
+  return { shipments: S.rows.length, over: over.length, overTotal: over.reduce((s, r) => s + r.diff, 0) };
+}
+async function saveAudit() {
+  if (!db || !S.id) return;
+  const t = totals();
+  const invs = [...new Set(S.fx.map(r => r.inv))];
+  await db.doc(`audits/${S.id}`).update({ invoices: invs, shipments: t.shipments, overCount: t.over, overTotal: Math.round(t.overTotal * 100) / 100, updatedAt: new Date().toISOString() });
+  await writeChunks(S.id, 'sr', S.sr);
+  await writeChunks(S.id, 'fx', S.fx);
+}
+async function openAudit(id) {
+  if (S.unsubStatus) { S.unsubStatus(); S.unsubStatus = null; }
+  S.id = id; S.sr = []; S.fx = []; S.status = new Map(); S.filter = 'all';
+  $('files').textContent = '';
+  if (id) safeSet('fedexAudit.last', id);
+  if (!id) { analyze(); return; }
+  if (db) {
+    try {
+      S.busy = true; $('msg').textContent = 'Loading saved audit…';
+      [S.sr, S.fx] = await Promise.all([readChunks(id, 'sr'), readChunks(id, 'fx')]);
+      $('msg').textContent = '';
+      S.unsubStatus = db.collection(`audits/${id}/status`).onSnapshot(snap => {
+        S.status = new Map(snap.docs.map(d => [d.id, d.data()]));
+        render(); loadNames();
+      }, e => { $('msg').textContent = 'Could not load dispute marks: ' + (e.message || e.code); });
+    } catch (e) { $('msg').textContent = 'Could not load this audit: ' + (e.message || e.code); }
+    S.busy = false;
+  }
+  analyze();
+}
+
+/* ---------- parsing (additive) ---------- */
+async function readFile(file) {
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false });
+  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: true });
+}
+async function handleFiles(list) {
+  if (!S.id) { $('msg').textContent = 'Create or open an audit first, then add files.'; return; }
+  if (!canWrite) { $('msg').textContent = 'You have view-only access, so files cannot be added.'; return; }
+  $('msg').textContent = '';
+  const newSR = [], newFX = [], names = [];
+  for (const f of list) {
+    try {
+      const rows = await readFile(f), head = (rows[0] || []).map(String), idx = k => head.indexOf(k);
+      if (head.includes('Shipment Tracking Number')) {
+        const I = { t: idx('Shipment Tracking Number'), c: idx('Shipment Shipping Charges'), w: idx('Package Weight'), d: idx('Shipment Date'), o: idx('Order Number'),
+                    n: idx('Ship To LastName'), l: idx('Package Size Length'), wd: idx('Package Size Width'), h: idx('Package Size Height') };
+        let n = 0;
+        for (const r of rows.slice(1)) {
+          if (!r[I.t]) continue; n++;
+          newSR.push({ t: tid(r[I.t]), q: num(r[I.c]), w: num(r[I.w]), d: fmtDate(r[I.d]), o: String(r[I.o] ?? ''), n: String(r[I.n] ?? ''), dm: [r[I.l], r[I.wd], r[I.h]].join('×') });
+        }
+        names.push(`${f.name}: ShipRush, ${n} rows`);
+      } else if (head.includes('Express or Ground Tracking ID')) {
+        const cD = head.map((h, i) => h === 'Tracking ID Charge Description' ? i : -1).filter(i => i >= 0);
+        const I = { inv: idx('Invoice Number'), t: idx('Express or Ground Tracking ID'), m: idx('TDMasterTrackingID'), net: idx('Net Charge Amount'),
+                    svc: idx('Ground Service'), rated: idx('Rated Weight Amount'), ship: idx('Shipment Date'), dl: idx('Dim Length'), dw: idx('Dim Width'), dh: idx('Dim Height') };
+        let n = 0;
+        for (const r of rows.slice(1)) {
+          if (!r[I.t] || r[I.net] === '') continue; n++;
+          const dims = [r[I.dl], r[I.dw], r[I.dh]].every(v => v !== '' && v != null) ? [r[I.dl], r[I.dw], r[I.dh]].join('×') : '';
+          newFX.push({ i: String(r[I.inv] ?? ''), t: tid(r[I.t]), m: tid(r[I.m]) || tid(r[I.t]), n: num(r[I.net]), r: num(r[I.rated]), dm: dims, s: String(r[I.ship] ?? ''),
+                       c: cD.map(i => [r[i], num(r[i + 1])]).filter(c => c[0]) });
+        }
+        names.push(`${f.name}: FedEx invoice, ${n} packages`);
+      } else names.push(`${f.name}: not recognized, skipped`);
+    } catch (e) { $('msg').textContent = `Could not read ${f.name}: ${e.message}`; }
+  }
+  // merge: ShipRush by tracking number (keep what is already saved), FedEx by invoice + tracking
+  const haveSR = new Set(S.sr.map(r => r.t)), haveFX = new Set(S.fx.map(r => r.i + '|' + r.t));
+  const addSR = newSR.filter(r => !haveSR.has(r.t)), addFX = newFX.filter(r => !haveFX.has(r.i + '|' + r.t));
+  const dupFX = new Set(); const addFX2 = addFX.filter(r => { const k = r.i + '|' + r.t; if (dupFX.has(k)) return false; dupFX.add(k); return true; });
+  S.sr = S.sr.concat(addSR); S.fx = S.fx.concat(addFX2);
+  $('files').innerHTML = names.map(esc).join('<br>') + `<br>Added ${new Set(addSR.map(r => r.t)).size} new ShipRush shipments and ${addFX2.length} new FedEx packages.`;
+  analyze();
+  if (db && (addSR.length || addFX2.length)) {
+    try { $('msg').textContent = 'Saving…'; await saveAudit(); $('msg').textContent = 'Saved.'; setTimeout(() => { if ($('msg').textContent === 'Saved.') $('msg').textContent = ''; }, 2500); }
+    catch (e) { $('msg').textContent = 'Could not save: ' + (e.code === 'quota_exceeded' ? 'the storage limit is full. Delete an old audit and try again.' : (e.message || e.code)); }
+  }
+}
+
+/* ---------- analysis ---------- */
+function analyze() {
+  const sr = new Map();
+  for (const r of S.sr) {
+    const s = sr.get(r.t);
+    if (!s) sr.set(r.t, { ...r, pkgs: 1, tw: r.w, dimsAll: [r.dm] });
+    else { s.pkgs++; s.tw += r.w; s.dimsAll.push(r.dm); }
+  }
+  const fx = new Map(), seen = new Set();
+  for (const r of S.fx) {
+    const key = r.i + '|' + r.t; if (seen.has(key)) continue; seen.add(key);
+    let g = fx.get(r.m);
+    if (!g) fx.set(r.m, g = { tracks: [], dims: [], invs: new Set(), net: 0, rated: 0, pkgs: 0, charges: new Map(), svc: r.svc });
+    if (!g.tracks.includes(r.t)) g.tracks.push(r.t);
+    if (r.dm) g.dims.push(r.dm);
+    g.invs.add(r.i); g.net += r.n; g.rated += r.r; g.pkgs++;
+    for (const [d, a] of r.c) g.charges.set(d, (g.charges.get(d) || 0) + a);
+  }
+  S.rows = []; S.unS = []; S.unF = [];
+  for (const [t, s] of sr) {
+    const f = fx.get(t);
+    if (!f) { S.unS.push(s); continue; }
+    const flags = [];
+    for (const [d, a] of f.charges) if (SURCHARGE_FLAG.test(d) && !NORMAL.test(d) && a !== 0) flags.push(`${d} ${money(a)}`);
+    S.rows.push({ track: t, tracks: f.tracks, order: s.o, name: s.n, date: s.d, quote: s.q, billed: f.net, diff: f.net - s.q,
+                  shipWt: s.tw, billWt: f.rated, pkgsSR: s.pkgs, pkgsFX: f.pkgs, shipDims: s.dimsAll.join(' / '), billedDims: f.dims.join(' / '),
+                  inv: [...f.invs].join(', '), flags });
+  }
+  for (const [t, f] of fx) if (!sr.has(t)) S.unF.push({ t, net: f.net, svc: f.svc });
+  render();
+}
+
+/* ---------- dispute marks ---------- */
+const st = r => S.status.get(r.track) || {};
+function statusLabel(r) { const s = st(r); return s.accepted ? 'accepted' : (s.disp || 'open'); }
+async function saveMark(track, patch) {
+  if (!canWrite) return;
+  const cur = S.status.get(track) || {};
+  const next = { ...cur, ...patch, by: myId || null, at: new Date().toISOString() };
+  S.status.set(track, next); render();
+  if (!db) return;
+  try { await db.doc(`audits/${S.id}/status/${track}`).set(next); }
+  catch (e) { $('msg').textContent = 'Could not save that change: ' + (e.message || e.code); }
+}
+async function loadNames() {
+  if (!userNS || !userNS.profiles) return;
+  const need = [...new Set([...S.status.values()].map(s => s.by).filter(Boolean))].filter(i => !(i in S.names));
+  if (!need.length) return;
+  try { const p = await userNS.profiles(need); need.forEach(i => { S.names[i] = (p[i] && p[i].name) || ''; }); render(); } catch (e) { need.forEach(i => { S.names[i] = ''; }); }
+}
+
+/* ---------- render ---------- */
+const FILTERS = [['all', 'All'], ['dispute', 'To dispute'], ['accepted', 'Accepted'], ['filed', 'Filed'], ['refunded', 'Refunded'], ['rejected', 'Rejected']];
+function visible() {
+  const tol = num($('tol').value);
+  return S.rows.filter(r => Math.abs(r.diff) > tol).filter(r => {
+    const s = st(r);
+    switch (S.filter) {
+      case 'dispute': return r.diff > 0 && !s.accepted;
+      case 'accepted': return !!s.accepted;
+      case 'filed': case 'refunded': case 'rejected': return s.disp === S.filter;
+      default: return true;
+    }
+  });
+}
+function render() {
+  const hasAudit = !!S.id;
+  $('out').hidden = !hasAudit; $('emptyState').hidden = hasAudit;
+  $('drop').hidden = !hasAudit;
+  if (!hasAudit) return;
+  const tol = num($('tol').value);
+  const over = S.rows.filter(r => r.diff > tol);
+  const acc = over.filter(r => st(r).accepted), disp = over.filter(r => !st(r).accepted);
+  const sum = a => a.reduce((s, r) => s + r.diff, 0);
+  const recovered = over.reduce((s, r) => s + num(st(r).rec), 0);
+  const quoted = S.rows.reduce((s, r) => s + r.quote, 0), billed = S.rows.reduce((s, r) => s + r.billed, 0);
+  $('sum').innerHTML = [
+    ['Shipments compared', S.rows.length, ''], ['Quoted', money(quoted), ''], ['Billed', money(billed), ''],
+    ['Overcharged', money(sum(over)), over.length ? 'bad' : 'good'], ['Accepted (not disputing)', money(sum(acc)), ''],
+    ['To dispute', money(sum(disp)), disp.length ? 'bad' : 'good'], ['Recovered', money(recovered), recovered ? 'good' : '']
+  ].map(([l, v, c]) => `<div class="cell"><div class="v ${c}">${v}</div><div class="l">${l}</div></div>`).join('');
+  $('chips').innerHTML = FILTERS.map(([k, l]) => `<button class="chip" data-f="${k}" aria-pressed="${S.filter === k}">${l}</button>`).join('');
+  const ae = document.activeElement;
+  if (ae && ae.closest && ae.closest('#tbl') && (ae.type === 'text' || ae.type === 'number')) { S.dirty = true; return; } // don't clobber what someone is typing
+  S.dirty = false;
+  const focusKey = ae && ae.dataset && ae.dataset.t ? `[data-a="${ae.dataset.a}"][data-t="${ae.dataset.t}"]` : null;
+  const rows = visible().sort((a, b) => (a[S.sortKey] > b[S.sortKey] ? 1 : -1) * S.sortDir);
+  const cols = [['acc', 'Accept'], ['track', 'Tracking'], ['name', 'Recipient'], ['date', 'Shipped'], ['quote', 'Quoted', 'num'], ['billed', 'Billed', 'num'], ['diff', 'Difference', 'num'],
+                ['shipWt', 'Ship wt', 'num'], ['billWt', 'Billed wt', 'num'], ['flags', 'FedEx charges to review'], ['stat', 'Status'], ['rec', 'Recovered', 'num'], ['note', 'Note']];
+  const dis = canWrite ? '' : ' disabled';
+  $('tbl').innerHTML = '<thead><tr>' + cols.map(([k, l, c]) => `<th data-k="${k}" class="${c || ''}">${l}${S.sortKey === k ? (S.sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('') + '</tr></thead><tbody>' +
+    (rows.map(r => {
+      const s = st(r), over1 = r.diff > tol;
+      const tags = r.flags.map(f => `<span class="tag">${esc(f)}</span>`).join('') +
+        (r.pkgsSR === 1 && r.pkgsFX === 1 && r.billWt > r.shipWt + 0.5 ? `<span class="tag w">billed ${r.billWt} lb vs shipped ${r.shipWt} lb</span>` : '') +
+        (r.pkgsFX !== r.pkgsSR ? `<span class="tag w">${r.pkgsSR} pkg in ShipRush, ${r.pkgsFX} billed</span>` : '');
+      const who = s.by && S.names[s.by] ? `<div class="who">${esc(S.names[s.by])}</div>` : '';
+      const ctl = over1 ? `<td><input type="checkbox" data-a="acc" data-t="${r.track}" aria-label="Accept the difference for ${r.track}" ${s.accepted ? 'checked' : ''}${dis}></td>` : '<td></td>';
+      const mark = over1 ? `<td><select data-a="disp" data-t="${r.track}" aria-label="Dispute status"${dis}>${[['', 'Open'], ['filed', 'Filed'], ['refunded', 'Refunded'], ['rejected', 'Rejected']].map(([v, l]) => `<option value="${v}" ${(s.disp || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${who}</td>
+        <td><input type="number" step="0.01" min="0" data-a="rec" data-t="${r.track}" value="${s.rec ?? ''}" aria-label="Recovered amount"${dis}></td>
+        <td><input type="text" data-a="note" data-t="${r.track}" value="${esc(s.note ?? '')}" aria-label="Note"${dis}></td>` : '<td></td><td></td><td></td>';
+      return `<tr class="${s.accepted ? 'acc' : ''}">${ctl}<td class="trk">${r.tracks.map(esc).join('<br>')}</td><td>${esc(r.name)}</td><td>${esc(r.date)}</td>
+        <td class="num">${money(r.quote)}</td><td class="num">${money(r.billed)}</td><td class="num ${r.diff > 0 ? 'bad' : 'good'}">${money(r.diff)}</td>
+        <td class="num">${r.shipWt}</td><td class="num">${r.billWt}</td><td>${tags}</td>${mark}</tr>`;
+    }).join('') || `<tr><td colspan="${cols.length}" class="empty">${S.rows.length ? 'Nothing matches this filter.' : 'Add the ShipRush and FedEx files to compare them.'}</td></tr>`) + '</tbody>';
+  if (focusKey) { const el = $('tbl').querySelector(focusKey); if (el) el.focus(); }
+  $('unmS').textContent = `${S.unS.length} ShipRush shipments not on the FedEx invoice, ${S.unF.length} FedEx shipments not in ShipRush`;
+  $('unm').innerHTML = `<b>In ShipRush, not on the FedEx invoice</b> (another invoice, or not billed yet):<br>` +
+    (S.unS.map(s => `${esc(s.t)} (${money(s.q)}, ${esc(s.d)})`).join('<br>') || 'none') +
+    `<br><br><b>On the FedEx invoice, not in the ShipRush files</b> (shipped outside ShipRush, or before the export range):<br>` +
+    (S.unF.slice(0, 200).map(f => `${esc(f.t)} (${money(f.net)}, ${esc(f.svc)})`).join('<br>') || 'none') + (S.unF.length > 200 ? `<br>and ${S.unF.length - 200} more` : '');
+}
+
+/* ---------- exports ---------- */
+async function saveFile(filename, data, mime) {
+  if (dl) {
+    try { await dl.save({ filename, data }); return; }
+    catch (e) { if (e && e.code === 'declined') return; if (e && e.code && e.code !== 'unavailable') { $('msg').textContent = 'Could not save the file: ' + (e.message || e.code); return; } }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: mime || 'application/octet-stream' })); a.download = filename; a.click();
+}
+function reportRows() {
+  const tol = num($('tol').value), incl = $('inclAcc').checked;
+  const over = S.rows.filter(r => r.diff > tol && (incl || !st(r).accepted)).sort((a, b) => b.diff - a.diff);
+  return { over, total: over.reduce((s, r) => s + r.diff, 0) };
+}
+$('pdf').onclick = async () => {
+  if (!window.jspdf) { $('msg').textContent = 'The PDF tool did not load. Check your connection and try again.'; return; }
+  const d = reportRows(); if (!d.over.length) { $('msg').textContent = 'Nothing to report: every overcharge is marked accepted.'; return; }
+  const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+  const body = d.over.map(r => [r.tracks.join('\n'), r.name, r.date, wt(r.shipWt), r.shipDims, wt(r.billWt), r.billedDims, money(r.quote), money(r.billed), money(r.diff)]);
+  body.push([{ content: 'Total overcharged', colSpan: 9, styles: { halign: 'right', fontStyle: 'bold' } }, { content: money(d.total), styles: { halign: 'right', fontStyle: 'bold', textColor: [180, 35, 24] } }]);
+  doc.autoTable({ startY: 36, margin: { left: 36, right: 36, top: 36, bottom: 36 }, theme: 'grid',
+    head: [['Tracking', 'Recipient', 'Shipped', 'Shipped weight', 'Shipped size (in)', 'Billed weight', 'Billed size (in)', 'Quoted', 'Billed', 'Over']],
+    body, styles: { fontSize: 7.5, cellPadding: 3, lineColor: [221, 221, 221], textColor: 20 }, headStyles: { fillColor: [240, 240, 243], textColor: 20, fontStyle: 'bold' },
+    columnStyles: { 3: { halign: 'right' }, 5: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right', textColor: [180, 35, 24], fontStyle: 'bold' } },
+    didParseCell: h => { if (h.section === 'head' && [3, 5, 7, 8, 9].includes(h.column.index)) h.cell.styles.halign = 'right'; } });
+  await saveFile('overcharges.pdf', doc.output('arraybuffer'), 'application/pdf');
+};
+$('xlsx').onclick = async () => {
+  if (typeof ExcelJS === 'undefined') { $('msg').textContent = 'The Excel tool did not load. Check your connection and try again.'; return; }
+  const d = reportRows(); if (!d.over.length) { $('msg').textContent = 'Nothing to report: every overcharge is marked accepted.'; return; }
+  const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Overcharges', { views: [{ state: 'frozen', ySplit: 1 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+  ws.columns = [22, 20, 12, 13, 20, 13, 20, 12, 12, 13].map(width => ({ width }));
+  const head = ['Tracking', 'Recipient', 'Shipped', 'Shipped weight', 'Shipped size (in)', 'Billed weight', 'Billed size (in)', 'Quoted', 'Billed', 'Overcharge'];
+  const hr = ws.getRow(1); head.forEach((h, i) => { const c = hr.getCell(i + 1); c.value = h; c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2D4F8E' } }; c.alignment = { vertical: 'middle', horizontal: i >= 7 ? 'right' : 'left', wrapText: true }; });
+  hr.height = 22;
+  d.over.forEach((r, i) => {
+    const row = ws.getRow(2 + i);
+    [r.tracks.join('\n'), r.name, r.date, r.shipWt || '', r.shipDims, r.billWt || '', r.billedDims, r.quote, r.billed, r.diff].forEach((v, j) => { row.getCell(j + 1).value = v; });
+    row.getCell(1).numFmt = '@'; row.getCell(1).alignment = { wrapText: true, vertical: 'top' };
+    [4, 6].forEach(j => { row.getCell(j).numFmt = '0" lb"'; row.getCell(j).alignment = { horizontal: 'right', vertical: 'top' }; });
+    [8, 9, 10].forEach(j => { row.getCell(j).numFmt = '$#,##0.00'; row.getCell(j).alignment = { horizontal: 'right', vertical: 'top' }; });
+    row.getCell(10).font = { bold: true, color: { argb: 'FFB42318' } };
+    [2, 3, 5, 7].forEach(j => { row.getCell(j).alignment = { vertical: 'top', wrapText: true }; });
+    row.eachCell(c => { c.border = { bottom: { style: 'thin', color: { argb: 'FFE2E5EA' } } }; });
+    if (i % 2) row.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7FA' } }; });
+  });
+  const tr = ws.getRow(2 + d.over.length);
+  tr.getCell(9).value = 'Total overcharged'; tr.getCell(9).font = { bold: true }; tr.getCell(9).alignment = { horizontal: 'right' };
+  tr.getCell(10).value = { formula: `SUM(J2:J${1 + d.over.length})`, result: d.total }; tr.getCell(10).numFmt = '$#,##0.00'; tr.getCell(10).font = { bold: true, color: { argb: 'FFB42318' } };
+  tr.eachCell(c => { c.border = { top: { style: 'medium' } }; });
+  await saveFile('overcharges.xlsx', await wb.xlsx.writeBuffer());
+};
+$('csv').onclick = () => {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const head = ['Tracking', 'Recipient', 'Shipped', 'Quoted', 'Billed', 'Difference', 'Accepted', 'Status', 'Recovered', 'Note'];
+  const lines = [head.map(q).join(',')].concat(visible().sort((a, b) => b.diff - a.diff).map(r => { const s = st(r);
+    return [`="${r.tracks.join(' ')}"`, r.name, r.date, r.quote.toFixed(2), r.billed.toFixed(2), r.diff.toFixed(2), s.accepted ? 'yes' : '', s.disp || '', s.rec ?? '', s.note ?? ''].map((v, i) => i === 0 ? v : q(v)).join(','); }));
+  saveFile('fedex-audit.csv', '﻿' + lines.join('\n'), 'text/csv');
+};
+$('backup').onclick = () => {
+  const a = S.audits.find(x => x.id === S.id) || {};
+  saveFile(`audit-${(a.name || 'backup').replace(/[^\w-]+/g, '-')}.json`, JSON.stringify({ app: 'fedex-overcharge-ledger', v: 1, name: a.name, year: a.year, sr: S.sr, fx: S.fx, status: Object.fromEntries(S.status) }));
+};
+$('restore').onclick = () => $('restoreFile').click();
+$('restoreFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text()); if (j.app !== 'fedex-overcharge-ledger') throw new Error('This is not a backup from this tool.');
+    const id = await createAudit((j.name || 'Restored audit') + ' (restored)', j.year || new Date().getFullYear());
+    S.sr = j.sr || []; S.fx = j.fx || []; analyze();
+    if (db) { await saveAudit(); for (const [t, v] of Object.entries(j.status || {})) await db.doc(`audits/${id}/status/${t}`).set(v); await openAudit(id); } else { S.status = new Map(Object.entries(j.status || {})); analyze(); }
+    $('msg').textContent = 'Backup restored as a new audit.';
+  } catch (er) { $('msg').textContent = 'Could not restore: ' + er.message; }
+};
+
+/* ---------- audits ---------- */
+async function createAudit(name, year) {
+  const id = (db ? auditsCol().doc().id : 'local');
+  const meta = { name, year: Number(year) || new Date().getFullYear(), createdAt: new Date().toISOString(), createdBy: myId || null, invoices: [], shipments: 0, overCount: 0, overTotal: 0 };
+  if (db) { await db.doc(`audits/${id}`).set(meta); } else { S.audits = [{ id, ...meta }]; renderPicker(); }
+  if (S.id !== id) { S.id = id; S.sr = []; S.fx = []; S.status = new Map(); if (db) await openAudit(id); else analyze(); }
+  return id;
+}
+function renderPicker() {
+  const sel = $('audit'), byYear = new Map();
+  S.audits.forEach(a => { const y = a.year || 'Other'; if (!byYear.has(y)) byYear.set(y, []); byYear.get(y).push(a); });
+  const years = [...byYear.keys()].sort((a, b) => b - a);
+  sel.innerHTML = (S.audits.length ? '' : '<option value="">No audits yet</option>') + years.map(y => `<optgroup label="${esc(y)}">${byYear.get(y).map(a =>
+    `<option value="${esc(a.id)}" ${a.id === S.id ? 'selected' : ''}>${esc(a.name)}${a.overTotal ? ' · ' + money(a.overTotal) + ' over' : ''}</option>`).join('')}</optgroup>`).join('');
+  renderDel();
+}
+function renderDel() {
+  const el = $('delArea'); el.innerHTML = '';
+  if (!S.id || !db || !canAdmin) return;
+  if (!S.confirmDel) { el.innerHTML = '<button class="danger" id="delBtn">Delete audit</button>'; $('delBtn').onclick = () => { S.confirmDel = true; renderDel(); }; return; }
+  el.innerHTML = 'Delete this audit and its dispute marks for everyone? <button class="danger" id="delYes">Delete</button><button class="ghost" id="delNo">Keep</button>';
+  $('delNo').onclick = () => { S.confirmDel = false; renderDel(); };
+  $('delYes').onclick = async () => {
+    const id = S.id; S.confirmDel = false;
+    try {
+      for (const kind of ['sr', 'fx', 'status']) { const snap = await db.collection(`audits/${id}/${kind}`).get(); for (const d of snap.docs) await db.doc(`audits/${id}/${kind}/${d.id}`).delete(); }
+      await db.doc(`audits/${id}`).delete();
+      S.id = null; await openAudit(null);
+    } catch (e) { $('msg').textContent = 'Could not delete: ' + (e.message || e.code); }
+  };
+}
+let canAdmin = true;
+$('audit').onchange = e => { S.confirmDel = false; if (e.target.value) openAudit(e.target.value); };
+$('newBtn').onclick = () => { $('newForm').hidden = false; $('newBtn').hidden = true; $('newYear').value = new Date().getFullYear(); $('newName').focus(); };
+$('newNo').onclick = () => { $('newForm').hidden = true; $('newBtn').hidden = false; };
+$('newOk').onclick = async () => {
+  const name = $('newName').value.trim(); if (!name) { $('msg').textContent = 'Give the audit a name, such as "Sept 2026 invoices".'; return; }
+  if (!canWrite) { $('msg').textContent = 'You have view-only access, so audits cannot be created.'; return; }
+  try { await createAudit(name, $('newYear').value); $('newName').value = ''; $('newNo').onclick(); $('msg').textContent = ''; }
+  catch (e) { $('msg').textContent = 'Could not create the audit: ' + (e.message || e.code); }
+};
+
+/* ---------- events ---------- */
+$('chips').onclick = e => { const b = e.target.closest('[data-f]'); if (b) { S.filter = b.dataset.f; render(); } };
+$('tbl').onclick = e => { const th = e.target.closest('th'); if (th) { const k = th.dataset.k; S.sortDir = S.sortKey === k ? -S.sortDir : -1; S.sortKey = k; render(); } };
+$('tbl').onchange = e => {
+  const el = e.target, t = el.dataset.t, a = el.dataset.a; if (!t) return;
+  if (a === 'acc') saveMark(t, { accepted: el.checked });
+  else if (a === 'disp') saveMark(t, { disp: el.value });
+  else if (a === 'rec') saveMark(t, { rec: el.value === '' ? null : num(el.value) });
+  else if (a === 'note') saveMark(t, { note: el.value.trim() });
+};
+$('tol').oninput = render;
+$('tbl').addEventListener('focusout', () => { if (S.dirty) setTimeout(render, 0); });
+const drop = $('drop');
+drop.onclick = () => $('picker').click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('picker').click(); } };
+$('picker').onchange = e => { handleFiles([...e.target.files]); e.target.value = ''; };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); handleFiles([...e.dataTransfer.files]); };
+
+/* ---------- start ---------- */
+(async () => {
+  $('newYear').value = new Date().getFullYear();
+  render();
+  const c = window.claude;
+  if (c && c.use) { try { db = await c.use('db'); userNS = await c.use('user'); dl = await c.use('downloads'); } catch (e) {} }
+  if (userNS) {
+    try { myId = userNS.id ? await userNS.id() : null; } catch (e) {}
+    try { const w = await userNS.can('data.write'); if (w === false) canWrite = false; } catch (e) {}
+    try { canAdmin = await userNS.canEdit(); } catch (e) {}
+  }
+  if (!canWrite) { $('banner').hidden = false; $('banner').textContent = 'You have view-only access. You can read this audit but not change it.'; }
+  if (!db) {
+    $('banner').hidden = false;
+    $('banner').textContent = 'Not saved: this page could not reach its shared storage (are you signed in to Claude?). You can still compare files, but nothing is remembered.';
+    await createAudit('Unsaved audit', new Date().getFullYear());
+    return;
+  }
+  auditsCol().onSnapshot(snap => {
+    S.audits = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    if (S.id && !S.audits.some(a => a.id === S.id)) { S.id = null; }
+    renderPicker();
+    if (S.firstLoad) {
+      S.firstLoad = false;
+      const last = safeGet('fedexAudit.last'), pick = S.audits.find(a => a.id === last) || S.audits[0];
+      if (pick) openAudit(pick.id).then(renderPicker);
+    }
+  }, e => { $('msg').textContent = 'Could not load saved audits: ' + (e.message || e.code); });
+})();
+</script>
