@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FedEx Invoice Audit</title>
+<title>Overcharge report</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
@@ -39,22 +39,16 @@
   details { margin-top:14px; } summary { cursor:pointer; color:var(--muted); }
   #report { display:none; }
   @media print {
-    @page { size: letter landscape; margin: 14mm; }
+    @page { size: letter landscape; margin: 0; }
     body { background:#fff; color:#000; }
     main { display:none; }
-    #report { display:block; font-size:11px; color:#000; }
-    #report h1 { font-size:20px; margin:0 0 2px; } #report h2 { font-size:13px; margin:16px 0 6px; }
-    #report .meta { color:#555; margin-bottom:10px; }
-    #report .kpis { display:flex; gap:10px; margin:10px 0; }
-    #report .kpi { flex:1; border:1px solid #ccc; border-radius:6px; padding:8px 10px; }
-    #report .kpi b { display:block; font-size:18px; } #report .kpi.red b { color:#b42318; }
+    #report { display:block; font-size:11px; color:#000; padding:14mm; }
     #report table { width:100%; border-collapse:collapse; }
     #report th { background:#f0f0f3; font-size:10px; text-align:left; position:static; cursor:default; color:#000; }
     #report th, #report td { border:1px solid #ddd; padding:4px 6px; }
     #report td.num, #report th.num { text-align:right; }
     #report tr { page-break-inside:avoid; }
     #report .red { color:#b42318; font-weight:600; }
-    #report .foot { margin-top:14px; color:#555; font-size:10px; }
   }
 </style>
 </head>
@@ -246,36 +240,16 @@ $('csv').onclick = () => {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv' }));
   a.download = 'fedex-audit.csv'; a.click();
 };
-
-// ---- Manager report (PDF + Excel): overcharged shipments only, shipped vs billed size/weight ----
+// ---- Clean overcharge sheet to send to FedEx: PDF + Excel, table only ----
 function reportData() {
   const tol = num($('tol').value);
   const over = state.rows.filter(r => r.diff > tol).sort((a, b) => b.diff - a.diff);
-  const dates = state.rows.map(r => fmtDate(r.date)).filter(Boolean).sort();
-  return {
-    tol, over,
-    total: over.reduce((s, r) => s + r.diff, 0),
-    quoted: state.rows.reduce((s, r) => s + r.quote, 0),
-    billed: state.rows.reduce((s, r) => s + r.billed, 0),
-    count: state.rows.length,
-    invs: [...new Set(state.rows.flatMap(r => r.inv.split(',')))].join(', '),
-    range: dates.length ? `${dates[0]} to ${dates[dates.length - 1]}` : '',
-    prepared: new Date().toLocaleDateString(),
-  };
+  return { over, total: over.reduce((s, r) => s + r.diff, 0) };
 }
 const wt = n => n ? n + ' lb' : '';
 $('pdf').onclick = () => {
   const d = reportData();
   $('report').innerHTML = `
-    <h1>FedEx billing audit: quoted vs. billed</h1>
-    <div class="meta">Prepared ${esc(d.prepared)} · FedEx invoice(s): ${esc(d.invs)} · Shipments ${esc(d.range)} · Differences under ${money(d.tol)} not shown</div>
-    <div class="kpis">
-      <div class="kpi"><b>${d.count}</b>shipments compared</div>
-      <div class="kpi"><b>${money(d.quoted)}</b>quoted by ShipRush</div>
-      <div class="kpi"><b>${money(d.billed)}</b>billed by FedEx</div>
-      <div class="kpi red"><b>${money(d.total)}</b>overcharged on ${d.over.length} shipments</div>
-    </div>
-    <h2>Shipments billed more than quoted</h2>
     <table><thead><tr><th>Tracking</th><th>Recipient</th><th>Shipped</th><th class="num">Shipped weight</th><th>Shipped size (in)</th><th class="num">Billed weight</th><th>Billed size (in)</th><th class="num">Quoted</th><th class="num">Billed</th><th class="num">Over</th></tr></thead><tbody>
       ${d.over.map(r => `<tr><td>${r.tracks.map(esc).join('<br>')}</td><td>${esc(r.name)}</td><td>${esc(fmtDate(r.date))}</td>
         <td class="num">${esc(wt(r.shipWt))}</td><td>${esc(r.shipDims)}</td><td class="num">${esc(wt(r.billWt))}</td><td>${esc(r.billedDims)}</td>
@@ -287,23 +261,14 @@ $('pdf').onclick = () => {
 $('xlsx').onclick = async () => {
   if (typeof ExcelJS === 'undefined') { $('msg').textContent = 'Excel export needs internet (it loads a small library). Try again once online.'; return; }
   const d = reportData();
-  const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Overcharges', { views: [{ state: 'frozen', ySplit: 9 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+  const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Overcharges', { views: [{ state: 'frozen', ySplit: 1 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
   ws.columns = [{ width: 22 }, { width: 20 }, { width: 12 }, { width: 13 }, { width: 20 }, { width: 13 }, { width: 20 }, { width: 12 }, { width: 12 }, { width: 13 }];
-  ws.mergeCells('A1:J1'); ws.getCell('A1').value = 'FedEx billing audit: quoted vs. billed'; ws.getCell('A1').font = { bold: true, size: 16 };
-  ws.getCell('A2').value = `Prepared ${d.prepared} · FedEx invoice(s): ${d.invs} · Shipments ${d.range}`;
-  ws.getCell('A2').font = { color: { argb: 'FF666666' } };
-  [['Shipments compared', d.count, '0'], ['Quoted by ShipRush', d.quoted, '$#,##0.00'], ['Billed by FedEx', d.billed, '$#,##0.00'],
-   ['Total overcharged', d.total, '$#,##0.00'], ['Shipments overcharged', d.over.length, '0']].forEach(([l, v, f], i) => {
-    ws.getCell(3 + i, 1).value = l; ws.getCell(3 + i, 1).font = { bold: true };
-    const c = ws.getCell(3 + i, 2); c.value = v; c.numFmt = f; c.alignment = { horizontal: 'left' };
-    if (l === 'Total overcharged') c.font = { bold: true, color: { argb: 'FFB42318' } };
-  });
   const head = ['Tracking', 'Recipient', 'Shipped', 'Shipped weight', 'Shipped size (in)', 'Billed weight', 'Billed size (in)', 'Quoted', 'Billed', 'Overcharge'];
-  const hr = ws.getRow(9); head.forEach((h, i) => { const c = hr.getCell(i + 1); c.value = h; c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  const hr = ws.getRow(1); head.forEach((h, i) => { const c = hr.getCell(i + 1); c.value = h; c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4D148C' } }; c.alignment = { vertical: 'middle', horizontal: i >= 7 ? 'right' : 'left', wrapText: true }; });
   hr.height = 22;
   d.over.forEach((r, i) => {
-    const row = ws.getRow(10 + i);
+    const row = ws.getRow(2 + i);
     [r.tracks.join('\n'), r.name, fmtDate(r.date), r.shipWt || '', r.shipDims, r.billWt || '', r.billedDims, r.quote, r.billed, r.diff].forEach((v, j) => { row.getCell(j + 1).value = v; });
     row.getCell(1).numFmt = '@'; row.getCell(1).alignment = { wrapText: true, vertical: 'top' };
     [4, 6].forEach(j => { row.getCell(j).numFmt = '0" lb"'; row.getCell(j).alignment = { horizontal: 'right', vertical: 'top' }; });
@@ -313,14 +278,14 @@ $('xlsx').onclick = async () => {
     row.eachCell(c => { c.border = { bottom: { style: 'thin', color: { argb: 'FFE2E5EA' } } }; });
     if (i % 2) row.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7FA' } }; });
   });
-  const tr = ws.getRow(10 + d.over.length);
+  const tr = ws.getRow(2 + d.over.length);
   tr.getCell(9).value = 'Total overcharged'; tr.getCell(9).font = { bold: true }; tr.getCell(9).alignment = { horizontal: 'right' };
-  tr.getCell(10).value = { formula: `SUM(J10:J${9 + d.over.length})`, result: d.total }; tr.getCell(10).numFmt = '$#,##0.00';
+  tr.getCell(10).value = { formula: `SUM(J2:J${1 + d.over.length})`, result: d.total }; tr.getCell(10).numFmt = '$#,##0.00';
   tr.getCell(10).font = { bold: true, color: { argb: 'FFB42318' } };
   tr.eachCell(c => { c.border = { top: { style: 'medium' } }; });
   const buf = await wb.xlsx.writeBuffer();
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  a.download = 'fedex-audit.xlsx'; a.click();
+  a.download = 'overcharges.xlsx'; a.click();
 };
 const drop = $('drop');
 drop.onclick = () => $('picker').click();
