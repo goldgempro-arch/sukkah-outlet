@@ -54,7 +54,7 @@
     <div class="row">
       <label>Ignore differences under $ <input id="tol" type="number" min="0" step="0.25" value="0.50"></label>
       <label><input id="onlyOver" type="checkbox"> only show overcharges</label>
-      <button id="csv">Download dispute list (CSV)</button>
+      <button id="csv">Download this table (CSV)</button>
     </div>
     <div class="stats" id="stats"></div>
 
@@ -168,8 +168,15 @@ function visible() {
   const tol = num($('tol').value), only = $('onlyOver').checked;
   return state.rows.filter(r => only ? r.diff > tol : Math.abs(r.diff) > tol);
 }
+function sortedRows() { return visible().sort((a, b) => (a[sortKey] > b[sortKey] ? 1 : -1) * sortDir); }
+function notes(r) {
+  const n = r.flags.slice();
+  if (r.pkgsSR === 1 && r.pkgsFX === 1 && r.billWt > r.shipWt + 0.5) n.push(`billed ${r.billWt} lb vs shipped ${r.shipWt} lb`);
+  if (r.pkgsFX !== r.pkgsSR) n.push(`${r.pkgsSR} pkg in ShipRush, ${r.pkgsFX} billed`);
+  return n;
+}
 function render() {
-  const rows = visible().sort((a, b) => (a[sortKey] > b[sortKey] ? 1 : -1) * sortDir);
+  const rows = sortedRows();
   const over = rows.filter(r => r.diff > 0).reduce((s, r) => s + r.diff, 0);
   const under = rows.filter(r => r.diff < 0).reduce((s, r) => s + r.diff, 0);
   const quoted = state.rows.reduce((s, r) => s + r.quote, 0), billed = state.rows.reduce((s, r) => s + r.billed, 0);
@@ -207,12 +214,12 @@ function fmtDate(d) {
 
 $('tol').oninput = $('onlyOver').onchange = render;
 $('csv').onclick = () => {
-  const head = ['Tracking','Order','Recipient','Shipped','Quoted','Billed','Difference','Shipped weight','Billed weight','Charges to question','Invoice'];
+  const head = ['Tracking','Order','Recipient','Shipped','Quoted','Billed','Difference','Ship wt','Billed wt','Why (FedEx charges to question)','Invoice'];
   const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const lines = [head.map(q).join(',')].concat(visible().filter(r => r.diff > 0).sort((a, b) => b.diff - a.diff).map(r =>
-    [r.track, r.order, r.name, fmtDate(r.date), r.quote.toFixed(2), r.billed.toFixed(2), r.diff.toFixed(2), r.shipWt, r.billWt, r.flags.join('; '), r.inv].map(q).join(',')));
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
-  a.download = 'fedex-overcharges.csv'; a.click();
+  const lines = [head.map(q).join(',')].concat(sortedRows().map(r =>
+    [r.track, r.order, r.name, fmtDate(r.date), r.quote.toFixed(2), r.billed.toFixed(2), r.diff.toFixed(2), r.shipWt, r.billWt, notes(r).join('; '), r.inv].map(q).join(',')));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv' }));
+  a.download = 'fedex-audit.csv'; a.click();
 };
 const drop = $('drop');
 drop.onclick = () => $('picker').click();
