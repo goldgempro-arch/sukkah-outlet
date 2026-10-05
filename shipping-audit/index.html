@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FedEx Invoice Audit</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --text:#1c2024; --muted:#667; --line:#e2e5ea; --bad:#b42318; --badbg:#fef3f2; --good:#067647; --goodbg:#ecfdf3; --warn:#b54708; --accent:#4d148c; }
   @media (prefers-color-scheme: dark) { :root { --bg:#14161a; --card:#1d2025; --text:#e8eaed; --muted:#9aa0aa; --line:#2e3239; --bad:#f97066; --badbg:#3a1c1a; --good:#47cd89; --goodbg:#12301f; --warn:#fdb022; --accent:#b692f6; } }
@@ -36,6 +37,25 @@
   .tag.w { background:var(--card); border:1px solid var(--line); color:var(--warn); }
   .hide { display:none; } .err { color:var(--bad); }
   details { margin-top:14px; } summary { cursor:pointer; color:var(--muted); }
+  #report { display:none; }
+  @media print {
+    @page { size: letter landscape; margin: 14mm; }
+    body { background:#fff; color:#000; }
+    main { display:none; }
+    #report { display:block; font-size:11px; color:#000; }
+    #report h1 { font-size:20px; margin:0 0 2px; } #report h2 { font-size:13px; margin:16px 0 6px; }
+    #report .meta { color:#555; margin-bottom:10px; }
+    #report .kpis { display:flex; gap:10px; margin:10px 0; }
+    #report .kpi { flex:1; border:1px solid #ccc; border-radius:6px; padding:8px 10px; }
+    #report .kpi b { display:block; font-size:18px; } #report .kpi.red b { color:#b42318; }
+    #report table { width:100%; border-collapse:collapse; }
+    #report th { background:#f0f0f3; font-size:10px; text-align:left; position:static; cursor:default; color:#000; }
+    #report th, #report td { border:1px solid #ddd; padding:4px 6px; }
+    #report td.num, #report th.num { text-align:right; }
+    #report tr { page-break-inside:avoid; }
+    #report .red { color:#b42318; font-weight:600; }
+    #report .foot { margin-top:14px; color:#555; font-size:10px; }
+  }
 </style>
 </head>
 <body>
@@ -54,7 +74,9 @@
     <div class="row">
       <label>Ignore differences under $ <input id="tol" type="number" min="0" step="0.25" value="0.50"></label>
       <label><input id="onlyOver" type="checkbox"> only show overcharges</label>
-      <button id="csv">Download this table (CSV)</button>
+      <button id="pdf">Download PDF report</button>
+      <button id="xlsx">Download Excel report</button>
+      <button id="csv" class="secondary">Download table (CSV)</button>
     </div>
     <div class="stats" id="stats"></div>
 
@@ -64,6 +86,7 @@
     <details><summary id="unmS"></summary><div id="unm" class="card" style="margin-top:8px"></div></details>
   </div>
 </main>
+<div id="report"></div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -110,14 +133,14 @@ async function handleFiles(list) {
         const cD = head.map((h, i) => h === 'Tracking ID Charge Description' ? i : -1).filter(i => i >= 0);
         const I = { inv: idx('Invoice Number'), invDate: idx('Invoice Date'), t: idx('Express or Ground Tracking ID'), master: idx('TDMasterTrackingID'),
                     net: idx('Net Charge Amount'), svc: idx('Service Type'), gsvc: idx('Ground Service'), rated: idx('Rated Weight Amount'),
-                    act: idx('Actual Weight Amount'), ship: idx('Shipment Date'), name: idx('Recipient Name') };
+                    act: idx('Actual Weight Amount'), dl: idx('Dim Length'), dw: idx('Dim Width'), dh: idx('Dim Height'), ship: idx('Shipment Date'), name: idx('Recipient Name') };
         let n = 0;
         for (const r of rows.slice(1)) {
           if (!r[I.t] || r[I.net] === '' ) continue; // only the main charge row of each package
           n++;
           const charges = cD.map(i => [r[i], num(r[i + 1])]).filter(c => c[0]);
           state.fx.push({ inv: r[I.inv], invDate: r[I.invDate], track: tid(r[I.t]), master: tid(r[I.master]) || tid(r[I.t]),
-                          net: num(r[I.net]), svc: r[I.gsvc] || r[I.svc], rated: num(r[I.rated]), ship: r[I.ship], charges });
+                          dims: [r[I.dl], r[I.dw], r[I.dh]].every(v => v !== '' && v != null) ? [r[I.dl], r[I.dw], r[I.dh]].join('×') : '', net: num(r[I.net]), svc: r[I.gsvc] || r[I.svc], rated: num(r[I.rated]), ship: r[I.ship], charges });
         }
         state.hasFX = true;
         names.push(`${f.name} — FedEx invoice, ${n} packages`);
@@ -144,8 +167,8 @@ function analyze() {
   for (const r of state.fx) {
     const key = r.inv + '|' + r.track; if (seen.has(key)) continue; seen.add(key);
     let g = fx.get(r.master);
-    if (!g) fx.set(r.master, g = { master: r.master, tracks: [], invs: new Set(), net: 0, rated: 0, pkgs: 0, charges: new Map(), svc: r.svc, ship: r.ship });
-    if (!g.tracks.includes(r.track)) g.tracks.push(r.track); g.invs.add(r.inv); g.net += r.net; g.rated += r.rated; g.pkgs++;
+    if (!g) fx.set(r.master, g = { master: r.master, tracks: [], dims: [], invs: new Set(), net: 0, rated: 0, pkgs: 0, charges: new Map(), svc: r.svc, ship: r.ship });
+    if (!g.tracks.includes(r.track)) g.tracks.push(r.track); if (r.dims) g.dims.push(r.dims); g.invs.add(r.inv); g.net += r.net; g.rated += r.rated; g.pkgs++;
     for (const [d, a] of r.charges) g.charges.set(d, (g.charges.get(d) || 0) + a);
   }
   state.rows = []; state.unmatchedSR = []; state.unmatchedFX = [];
@@ -156,7 +179,7 @@ function analyze() {
     for (const [d, a] of f.charges) if (SURCHARGE_FLAG.test(d) && !NORMAL.test(d) && a !== 0) flags.push(`${d} ${money(a)}`);
     state.rows.push({ track: t, order: s.order, name: s.name, date: s.date, svc: s.svc, quote: s.quote, billed: f.net, diff: f.net - s.quote,
                       shipWt: s.totalWeight, billWt: f.rated, pkgsSR: s.pkgs, pkgsFX: f.pkgs, dims: s.dimsAll.join(' / '),
-                      inv: [...f.invs].join(','), tracks: f.tracks, flags });
+                      inv: [...f.invs].join(','), tracks: f.tracks, flags, shipDims: s.dimsAll.join(' / '), billedDims: f.dims.join(' / ') });
   }
   for (const [t, f] of fx) if (!sr.has(t)) state.unmatchedFX.push(f);
   $('out').classList.remove('hide');
@@ -222,6 +245,82 @@ $('csv').onclick = () => {
     [txt(r.tracks.join(' ')), r.order, r.name, fmtDate(r.date), r.quote.toFixed(2), r.billed.toFixed(2), r.diff.toFixed(2), r.shipWt, r.billWt, notes(r).join('; '), r.inv].map(q).join(',')));
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv' }));
   a.download = 'fedex-audit.csv'; a.click();
+};
+
+// ---- Manager report (PDF + Excel): overcharged shipments only, shipped vs billed size/weight ----
+function reportData() {
+  const tol = num($('tol').value);
+  const over = state.rows.filter(r => r.diff > tol).sort((a, b) => b.diff - a.diff);
+  const dates = state.rows.map(r => fmtDate(r.date)).filter(Boolean).sort();
+  return {
+    tol, over,
+    total: over.reduce((s, r) => s + r.diff, 0),
+    quoted: state.rows.reduce((s, r) => s + r.quote, 0),
+    billed: state.rows.reduce((s, r) => s + r.billed, 0),
+    count: state.rows.length,
+    invs: [...new Set(state.rows.flatMap(r => r.inv.split(',')))].join(', '),
+    range: dates.length ? `${dates[0]} to ${dates[dates.length - 1]}` : '',
+    prepared: new Date().toLocaleDateString(),
+  };
+}
+const wt = n => n ? n + ' lb' : '';
+$('pdf').onclick = () => {
+  const d = reportData();
+  $('report').innerHTML = `
+    <h1>FedEx billing audit: quoted vs. billed</h1>
+    <div class="meta">Prepared ${esc(d.prepared)} · FedEx invoice(s): ${esc(d.invs)} · Shipments ${esc(d.range)} · Differences under ${money(d.tol)} not shown</div>
+    <div class="kpis">
+      <div class="kpi"><b>${d.count}</b>shipments compared</div>
+      <div class="kpi"><b>${money(d.quoted)}</b>quoted by ShipRush</div>
+      <div class="kpi"><b>${money(d.billed)}</b>billed by FedEx</div>
+      <div class="kpi red"><b>${money(d.total)}</b>overcharged on ${d.over.length} shipments</div>
+    </div>
+    <h2>Shipments billed more than quoted</h2>
+    <table><thead><tr><th>Tracking</th><th>Recipient</th><th>Shipped</th><th class="num">Shipped weight</th><th>Shipped size (in)</th><th class="num">Billed weight</th><th>Billed size (in)</th><th class="num">Quoted</th><th class="num">Billed</th><th class="num">Over</th></tr></thead><tbody>
+      ${d.over.map(r => `<tr><td>${r.tracks.map(esc).join('<br>')}</td><td>${esc(r.name)}</td><td>${esc(fmtDate(r.date))}</td>
+        <td class="num">${esc(wt(r.shipWt))}</td><td>${esc(r.shipDims)}</td><td class="num">${esc(wt(r.billWt))}</td><td>${esc(r.billedDims)}</td>
+        <td class="num">${money(r.quote)}</td><td class="num">${money(r.billed)}</td><td class="num red">${money(r.diff)}</td></tr>`).join('')}
+      <tr><td colspan="9" style="text-align:right"><b>Total overcharged</b></td><td class="num red">${money(d.total)}</td></tr>
+    </tbody></table>`;
+  window.print();
+};
+$('xlsx').onclick = async () => {
+  if (typeof ExcelJS === 'undefined') { $('msg').textContent = 'Excel export needs internet (it loads a small library). Try again once online.'; return; }
+  const d = reportData();
+  const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Overcharges', { views: [{ state: 'frozen', ySplit: 9 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+  ws.columns = [{ width: 22 }, { width: 20 }, { width: 12 }, { width: 13 }, { width: 20 }, { width: 13 }, { width: 20 }, { width: 12 }, { width: 12 }, { width: 13 }];
+  ws.mergeCells('A1:J1'); ws.getCell('A1').value = 'FedEx billing audit: quoted vs. billed'; ws.getCell('A1').font = { bold: true, size: 16 };
+  ws.getCell('A2').value = `Prepared ${d.prepared} · FedEx invoice(s): ${d.invs} · Shipments ${d.range}`;
+  ws.getCell('A2').font = { color: { argb: 'FF666666' } };
+  [['Shipments compared', d.count, '0'], ['Quoted by ShipRush', d.quoted, '$#,##0.00'], ['Billed by FedEx', d.billed, '$#,##0.00'],
+   ['Total overcharged', d.total, '$#,##0.00'], ['Shipments overcharged', d.over.length, '0']].forEach(([l, v, f], i) => {
+    ws.getCell(3 + i, 1).value = l; ws.getCell(3 + i, 1).font = { bold: true };
+    const c = ws.getCell(3 + i, 2); c.value = v; c.numFmt = f; c.alignment = { horizontal: 'left' };
+    if (l === 'Total overcharged') c.font = { bold: true, color: { argb: 'FFB42318' } };
+  });
+  const head = ['Tracking', 'Recipient', 'Shipped', 'Shipped weight', 'Shipped size (in)', 'Billed weight', 'Billed size (in)', 'Quoted', 'Billed', 'Overcharge'];
+  const hr = ws.getRow(9); head.forEach((h, i) => { const c = hr.getCell(i + 1); c.value = h; c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4D148C' } }; c.alignment = { vertical: 'middle', horizontal: i >= 7 ? 'right' : 'left', wrapText: true }; });
+  hr.height = 22;
+  d.over.forEach((r, i) => {
+    const row = ws.getRow(10 + i);
+    [r.tracks.join('\n'), r.name, fmtDate(r.date), r.shipWt || '', r.shipDims, r.billWt || '', r.billedDims, r.quote, r.billed, r.diff].forEach((v, j) => { row.getCell(j + 1).value = v; });
+    row.getCell(1).numFmt = '@'; row.getCell(1).alignment = { wrapText: true, vertical: 'top' };
+    [4, 6].forEach(j => { row.getCell(j).numFmt = '0" lb"'; row.getCell(j).alignment = { horizontal: 'right', vertical: 'top' }; });
+    [8, 9, 10].forEach(j => { row.getCell(j).numFmt = '$#,##0.00'; row.getCell(j).alignment = { horizontal: 'right', vertical: 'top' }; });
+    row.getCell(10).font = { bold: true, color: { argb: 'FFB42318' } };
+    [2, 3, 5, 7].forEach(j => row.getCell(j).alignment = { vertical: 'top', wrapText: true });
+    row.eachCell(c => { c.border = { bottom: { style: 'thin', color: { argb: 'FFE2E5EA' } } }; });
+    if (i % 2) row.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7FA' } }; });
+  });
+  const tr = ws.getRow(10 + d.over.length);
+  tr.getCell(9).value = 'Total overcharged'; tr.getCell(9).font = { bold: true }; tr.getCell(9).alignment = { horizontal: 'right' };
+  tr.getCell(10).value = { formula: `SUM(J10:J${9 + d.over.length})`, result: d.total }; tr.getCell(10).numFmt = '$#,##0.00';
+  tr.getCell(10).font = { bold: true, color: { argb: 'FFB42318' } };
+  tr.eachCell(c => { c.border = { top: { style: 'medium' } }; });
+  const buf = await wb.xlsx.writeBuffer();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = 'fedex-audit.xlsx'; a.click();
 };
 const drop = $('drop');
 drop.onclick = () => $('picker').click();
