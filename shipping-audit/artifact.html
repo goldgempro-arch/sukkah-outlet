@@ -9,15 +9,15 @@
   /* Layout: one working column. Audit picker bar, upload strip, money summary, filter chips, ledger table. */
   :root {
     --bg:#f2f3f5; --card:#ffffff; --ink:#171b22; --muted:#667085; --line:#dfe2e8; --accent:#2d4f8e; --accent-ink:#ffffff;
-    --bad:#b42318; --bad-bg:#fdecea; --good:#067647; --good-bg:#e6f4ec; --warn:#a15c07; --warn-bg:#fdf1dc; --row-alt:#f8f9fb;
+    --bad:#b42318; --bad-bg:#fdecea; --good:#067647; --good-bg:#e6f4ec; --warn:#a15c07; --warn-bg:#fdf1dc; --row-alt:#f8f9fb; --c-over:#eb6834; --c-spent:#2a78d6; --c-ok:#1baf7a; --c-warn:#eda100; --c-pink:#e87ba4; --grid:#e6e8ed;
     --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
   }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
     --bg:#13161b; --card:#1b1f26; --ink:#e8eaee; --muted:#9aa2b1; --line:#2c323c; --accent:#8fb0ee; --accent-ink:#0f1722;
-    --bad:#f97066; --bad-bg:#3b1d1a; --good:#47cd89; --good-bg:#12301f; --warn:#f5b84a; --warn-bg:#3a2a0c; --row-alt:#1f242c; color-scheme: dark; } }
+    --bad:#f97066; --bad-bg:#3b1d1a; --good:#47cd89; --good-bg:#12301f; --warn:#f5b84a; --warn-bg:#3a2a0c; --row-alt:#1f242c; --c-over:#d95926; --c-spent:#3987e5; --c-ok:#199e70; --c-warn:#c98500; --c-pink:#d55181; --grid:#2a303a; color-scheme: dark; } }
   :root[data-theme="dark"] {
     --bg:#13161b; --card:#1b1f26; --ink:#e8eaee; --muted:#9aa2b1; --line:#2c323c; --accent:#8fb0ee; --accent-ink:#0f1722;
-    --bad:#f97066; --bad-bg:#3b1d1a; --good:#47cd89; --good-bg:#12301f; --warn:#f5b84a; --warn-bg:#3a2a0c; --row-alt:#1f242c; color-scheme: dark; }
+    --bad:#f97066; --bad-bg:#3b1d1a; --good:#47cd89; --good-bg:#12301f; --warn:#f5b84a; --warn-bg:#3a2a0c; --row-alt:#1f242c; --c-over:#d95926; --c-spent:#3987e5; --c-ok:#199e70; --c-warn:#c98500; --c-pink:#d55181; --grid:#2a303a; color-scheme: dark; }
   body { background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:14px; line-height:1.45; }
   * { box-sizing:border-box; }
   [hidden] { display:none !important; }
@@ -63,12 +63,74 @@
   details summary { cursor:pointer; color:var(--muted); }
   .empty { padding:28px 16px; text-align:center; color:var(--muted); }
   .confirm { display:inline-flex; gap:6px; align-items:center; }
+
+  nav.chips .chip { font-weight:500; padding:6px 16px; }
+  #home { display:flex; flex-direction:column; gap:16px; }
+  #home h2 { font-size:15px; margin:0; font-weight:600; }
+  .hhead { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; justify-content:space-between; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px 16px; min-width:0; }
+  .tile .k { font-size:13px; color:var(--muted); }
+  .tile .v { font-family:var(--mono); font-size:28px; font-weight:500; margin:4px 0 2px; letter-spacing:-.02em; }
+  .tile .d { font-size:12px; color:var(--muted); }
+  .charts { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr)); gap:14px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px 16px; min-width:0; display:flex; flex-direction:column; gap:10px; }
+  .panel p { margin:0; font-size:12px; color:var(--muted); }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--muted); }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
+  .cols { display:flex; align-items:flex-end; gap:14px; overflow-x:auto; padding-bottom:4px; min-height:230px; border-bottom:1px solid var(--grid); }
+  .colw { flex:0 0 auto; min-width:92px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; text-align:center; cursor:default; border:0; background:none; color:inherit; font:inherit; padding:4px 2px; border-radius:6px; }
+  button.colw:hover { background:var(--row-alt); }
+  .colw[aria-pressed=true] { background:var(--row-alt); }
+  .colw .val { font-family:var(--mono); font-size:13px; font-weight:500; }
+  .colw .bars { width:32px; display:flex; flex-direction:column; justify-content:flex-end; gap:2px; }
+  .colw .seg { width:100%; }
+  .colw .seg.top { border-radius:4px 4px 0 0; }
+  .colw .lbl { font-size:13px; font-weight:500; margin-top:4px; max-width:110px; overflow-wrap:anywhere; }
+  .colw .sub { font-size:11px; color:var(--muted); max-width:110px; }
+  .hbars { display:flex; flex-direction:column; gap:9px; }
+  .hrow { display:grid; grid-template-columns:minmax(90px,170px) 1fr auto; gap:10px; align-items:center; font-size:13px; }
+  .hrow .name { overflow-wrap:anywhere; }
+  .hrow .track { height:14px; }
+  .hrow .fill { height:14px; border-radius:0 4px 4px 0; min-width:3px; }
+  .hrow .num { font-size:13px; }
+  .stackbar { display:flex; gap:2px; height:22px; width:100%; }
+  .stackbar .seg { height:100%; min-width:3px; }
+  .stackbar .seg:first-child { border-radius:4px 0 0 4px; } .stackbar .seg:last-child { border-radius:0 4px 4px 0; }
+  .lrows { display:flex; flex-direction:column; gap:6px; font-size:13px; }
+  .lrow { display:grid; grid-template-columns:14px 1fr auto auto; gap:8px; align-items:center; }
+  .lrow i { width:10px; height:10px; border-radius:2px; display:inline-block; }
+  .lrow .pc { color:var(--muted); font-size:12px; min-width:3.2em; text-align:right; }
+  .yeargroup { display:flex; flex-direction:column; gap:8px; }
+  .yeargroup h3 { margin:6px 0 0; font-size:13px; color:var(--muted); font-weight:500; }
+  .acards { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr)); gap:10px; }
+  .acard { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .acard .nm { font-weight:600; overflow-wrap:anywhere; }
+  .acard .meta { font-size:12px; color:var(--muted); }
+  .acard .nums { display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; }
+  .acard .nums div span { display:block; font-size:11px; color:var(--muted); }
+  .acard .nums div b { font-family:var(--mono); font-weight:500; font-size:14px; }
+  .acard .go { align-self:flex-start; }
+  .note { font-size:12px; color:var(--muted); }
+  #tip { position:fixed; z-index:50; pointer-events:none; background:var(--ink); color:var(--bg); padding:6px 9px; border-radius:6px; font-size:12px; max-width:260px; box-shadow:0 2px 8px rgba(0,0,0,.25); white-space:pre-line; }
+  details.tbl summary { margin-bottom:8px; }
+  .scroll { overflow-x:auto; }
+  .stack { display:flex; flex-direction:column; gap:14px; }
+  @media (max-width:520px) { .colw { min-width:74px; } .cols { gap:6px; } .colw .sub { font-size:10px; } .tile .v { font-size:24px; } .hrow { grid-template-columns:1fr auto; } .hrow .track { grid-column:1 / -1; order:3; } }
+  @media (prefers-reduced-motion: no-preference) { .fill, .bars .seg, .stackbar .seg { transition:opacity .15s; } }
 </style>
 
 <div class="wrap">
   <div class="top">
     <h1>FedEx Overcharge Ledger</h1>
-    <div class="bar" id="pickerBar">
+    <nav class="chips" id="nav" aria-label="Pages"><button class="chip" data-v="home" aria-pressed="true">Home</button><button class="chip" data-v="audit" aria-pressed="false">Audit</button></nav>
+  </div>
+<div id="banner" class="banner" hidden></div>
+  <div id="msg" class="err" role="status"></div>
+
+  <section id="home" aria-label="Home"></section>
+  <div id="auditView" class="stack" hidden>
+  <div class="bar" id="pickerBar">
       <label>Audit <select id="audit" aria-label="Audit"></select></label>
       <button class="ghost" id="newBtn">New audit</button>
       <span id="newForm" class="bar" hidden>
@@ -77,10 +139,6 @@
         <button id="newOk">Create</button><button class="ghost" id="newNo">Cancel</button>
       </span>
     </div>
-  </div>
-  <div id="banner" class="banner" hidden></div>
-  <div id="msg" class="err" role="status"></div>
-
   <div id="drop" tabindex="0" role="button" aria-label="Add ShipRush and FedEx files">
     <b>Drop ShipRush and FedEx files here</b> or click to choose. New files are added to this audit and remembered.
     <input id="picker" type="file" multiple accept=".xlsx,.xls,.csv" hidden>
@@ -108,13 +166,17 @@
     <div class="tablewrap" id="tw"><table id="tbl"></table></div>
     <details><summary id="unmS"></summary><div id="unm" class="card" style="margin-top:8px"></div></details>
   </div>
-  <div id="emptyState" class="card empty">No audit open yet. Create one, then drop in the ShipRush reports and the FedEx invoice.</div>
+  <div id="emptyState" class="card empty">No audit open yet. Pick one above, or create one and drop in the ShipRush reports and the FedEx invoice.</div>
+  </div>
 </div>
+<div id="tip" hidden></div>
 
 <script>
 const $ = id => document.getElementById(id);
 const num = v => { if (v === '' || v == null) return 0; const n = parseFloat(String(v).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; };
-const money = n => (n < 0 ? '-' : '') + '$' + Math.abs(n).toFixed(2);
+const money = n => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const usd = n => (n < 0 ? '-' : '') + '$' + Math.round(Math.abs(n)).toLocaleString('en-US');
+const r2 = n => Math.round(n * 100) / 100;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const tid = v => String(v ?? '').replace(/\.0$/, '').trim();
 const wt = n => n ? n + ' lb' : '';
@@ -130,7 +192,7 @@ const CHUNK = 150;
 
 let db = null, userNS = null, dl = null, canWrite = true, myId = null;
 const S = { audits: [], id: null, sr: [], fx: [], status: new Map(), rows: [], unS: [], unF: [], names: {}, unsubStatus: null,
-            filter: 'all', sortKey: 'diff', sortDir: -1, busy: false, firstLoad: true };
+            filter: 'all', sortKey: 'diff', sortDir: -1, busy: false, view: 'home', homeYear: 'all' };
 
 /* ---------- storage ---------- */
 const auditsCol = () => db.collection('audits');
@@ -163,6 +225,7 @@ async function openAudit(id) {
   S.id = id; S.sr = []; S.fx = []; S.status = new Map(); S.filter = 'all';
   $('files').textContent = '';
   if (id) safeSet('fedexAudit.last', id);
+  applySettings(S.audits.find(a => a.id === id));
   if (!id) { analyze(); return; }
   if (db) {
     try {
@@ -171,7 +234,7 @@ async function openAudit(id) {
       $('msg').textContent = '';
       S.unsubStatus = db.collection(`audits/${id}/status`).onSnapshot(snap => {
         S.status = new Map(snap.docs.map(d => [d.id, d.data()]));
-        render(); loadNames();
+        render(); loadNames(); scheduleSum();
       }, e => { $('msg').textContent = 'Could not load dispute marks: ' + (e.message || e.code); });
     } catch (e) { $('msg').textContent = 'Could not load this audit: ' + (e.message || e.code); }
     S.busy = false;
@@ -252,23 +315,25 @@ function analyze() {
     const f = fx.get(t);
     if (!f) { S.unS.push(s); continue; }
     const flags = [];
-    for (const [d, a] of f.charges) if (SURCHARGE_FLAG.test(d) && !NORMAL.test(d) && a !== 0) flags.push(`${d} ${money(a)}`);
+    const fl = [];
+    for (const [d, a] of f.charges) if (SURCHARGE_FLAG.test(d) && !NORMAL.test(d) && a !== 0) { flags.push(`${d} ${money(a)}`); fl.push([d, a]); }
     S.rows.push({ track: t, tracks: f.tracks, order: s.o, name: s.n, date: s.d, quote: s.q, billed: f.net, diff: f.net - s.q,
                   shipWt: s.tw, billWt: f.rated, pkgsSR: s.pkgs, pkgsFX: f.pkgs, shipDims: s.dimsAll.join(' / '), billedDims: f.dims.join(' / '),
-                  inv: [...f.invs].join(', '), flags });
+                  inv: [...f.invs].join(', '), flags, fl });
   }
   for (const [t, f] of fx) if (!sr.has(t)) S.unF.push({ t, net: f.net, svc: f.svc });
-  render();
+  render(); scheduleSum();
 }
 
 /* ---------- dispute marks ---------- */
 const st = r => S.status.get(r.track) || {};
+const pending = r => { const s = st(r); return !s.accepted && s.disp !== 'refunded' && s.disp !== 'rejected'; };
 function statusLabel(r) { const s = st(r); return s.accepted ? 'accepted' : (s.disp || 'open'); }
 async function saveMark(track, patch) {
   if (!canWrite) return;
   const cur = S.status.get(track) || {};
   const next = { ...cur, ...patch, by: myId || null, at: new Date().toISOString() };
-  S.status.set(track, next); render();
+  S.status.set(track, next); render(); scheduleSum();
   if (!db) return;
   try { await db.doc(`audits/${S.id}/status/${track}`).set(next); }
   catch (e) { $('msg').textContent = 'Could not save that change: ' + (e.message || e.code); }
@@ -287,7 +352,7 @@ function visible() {
   return S.rows.filter(r => Math.abs(r.diff) > tol).filter(r => {
     const s = st(r);
     switch (S.filter) {
-      case 'dispute': return r.diff > 0 && !s.accepted;
+      case 'dispute': return r.diff > 0 && pending(r);
       case 'accepted': return !!s.accepted;
       case 'filed': case 'refunded': case 'rejected': return s.disp === S.filter;
       default: return true;
@@ -301,7 +366,7 @@ function render() {
   if (!hasAudit) return;
   const tol = num($('tol').value);
   const over = S.rows.filter(r => r.diff > tol);
-  const acc = over.filter(r => st(r).accepted), disp = over.filter(r => !st(r).accepted);
+  const acc = over.filter(r => st(r).accepted), disp = over.filter(r => pending(r));
   const sum = a => a.reduce((s, r) => s + r.diff, 0);
   const recovered = over.reduce((s, r) => s + num(st(r).rec), 0);
   const quoted = S.rows.reduce((s, r) => s + r.quote, 0), billed = S.rows.reduce((s, r) => s + r.billed, 0);
@@ -423,6 +488,7 @@ async function createAudit(name, year) {
   const meta = { name, year: Number(year) || new Date().getFullYear(), createdAt: new Date().toISOString(), createdBy: myId || null, invoices: [], shipments: 0, overCount: 0, overTotal: 0 };
   if (db) { await db.doc(`audits/${id}`).set(meta); } else { S.audits = [{ id, ...meta }]; renderPicker(); }
   if (S.id !== id) { S.id = id; S.sr = []; S.fx = []; S.status = new Map(); if (db) await openAudit(id); else analyze(); }
+  setView('audit');
   return id;
 }
 function renderPicker() {
@@ -444,12 +510,12 @@ function renderDel() {
     try {
       for (const kind of ['sr', 'fx', 'status']) { const snap = await db.collection(`audits/${id}/${kind}`).get(); for (const d of snap.docs) await db.doc(`audits/${id}/${kind}/${d.id}`).delete(); }
       await db.doc(`audits/${id}`).delete();
-      S.id = null; await openAudit(null);
+      S.id = null; await openAudit(null); setView('home');
     } catch (e) { $('msg').textContent = 'Could not delete: ' + (e.message || e.code); }
   };
 }
 let canAdmin = true;
-$('audit').onchange = e => { S.confirmDel = false; if (e.target.value) openAudit(e.target.value); };
+$('audit').onchange = e => { S.confirmDel = false; if (e.target.value) { openAudit(e.target.value); } };
 $('newBtn').onclick = () => { $('newForm').hidden = false; $('newBtn').hidden = true; $('newYear').value = new Date().getFullYear(); $('newName').focus(); };
 $('newNo').onclick = () => { $('newForm').hidden = true; $('newBtn').hidden = false; };
 $('newOk').onclick = async () => {
@@ -458,6 +524,163 @@ $('newOk').onclick = async () => {
   try { await createAudit(name, $('newYear').value); $('newName').value = ''; $('newNo').onclick(); $('msg').textContent = ''; }
   catch (e) { $('msg').textContent = 'Could not create the audit: ' + (e.message || e.code); }
 };
+
+/* ---------- summary, saved settings, views ---------- */
+const stable = o => Array.isArray(o) ? '[' + o.map(stable).join(',') + ']' : (o && typeof o === 'object') ? '{' + Object.keys(o).sort().map(k => JSON.stringify(k) + ':' + stable(o[k])).join(',') + '}' : JSON.stringify(o);
+function computeSum() {
+  const tol = num($('tol').value), seen = new Set();
+  let billed = 0;
+  for (const r of S.fx) { const k = r.i + '|' + r.t; if (seen.has(k)) continue; seen.add(k); billed += r.n; }
+  const over = S.rows.filter(r => r.diff > tol);
+  const by = { open: 0, accepted: 0, filed: 0, refunded: 0, rejected: 0 }, ch = {};
+  let recovered = 0;
+  for (const r of over) {
+    const s = st(r); by[s.accepted ? 'accepted' : (s.disp || 'open')] += r.diff; recovered += num(s.rec);
+    for (const [d, a] of r.fl) ch[d] = (ch[d] || 0) + a;
+  }
+  Object.keys(by).forEach(k => { by[k] = r2(by[k]); });
+  const byCharge = {};
+  Object.entries(ch).sort((a, b) => b[1] - a[1]).slice(0, 12).forEach(([d, a]) => { byCharge[d.replace(/[.$#\[\]\/]/g, ' ')] = r2(a); });
+  return { billed: r2(billed), quoted: r2(S.rows.reduce((t, r) => t + r.quote, 0)), shipments: S.rows.length, overCount: over.length,
+           overTotal: r2(over.reduce((t, r) => t + r.diff, 0)), by, byCharge, recovered: r2(recovered) };
+}
+let sumTimer = null, sumWriting = false;
+function scheduleSum() {
+  clearTimeout(sumTimer);
+  sumTimer = setTimeout(async () => {
+    if (!db || !S.id || !canWrite || S.busy) return;
+    if (sumWriting) { scheduleSum(); return; }
+    const meta = S.audits.find(a => a.id === S.id) || {};
+    const sum = computeSum(), tol = num($('tol').value), inclAcc = $('inclAcc').checked;
+    if (!S.rows.length && !meta.sum && tol === (meta.tol ?? 0.5) && inclAcc === !!meta.inclAcc) return;
+    if (stable(meta.sum || null) === stable(sum) && meta.tol === tol && meta.inclAcc === inclAcc) return;
+    sumWriting = true;
+    try { await db.doc(`audits/${S.id}`).update({ sum, tol, inclAcc }); } catch (e) {} finally { sumWriting = false; }
+  }, 800);
+}
+function applySettings(meta) {
+  const ae = document.activeElement;
+  let tol = meta && typeof meta.tol === 'number' ? meta.tol : null;
+  if (tol === null && S.id) { const v = safeGet('fedexAudit.tol.' + S.id); if (v !== null && !isNaN(parseFloat(v))) tol = parseFloat(v); }
+  const before = $('tol').value + '|' + $('inclAcc').checked;
+  if (ae !== $('tol')) $('tol').value = tol === null ? '0.50' : String(tol);
+  if (ae !== $('inclAcc')) $('inclAcc').checked = !!(meta && meta.inclAcc);
+  return before !== $('tol').value + '|' + $('inclAcc').checked;
+}
+function setView(v) {
+  S.view = v;
+  $('home').hidden = v !== 'home'; $('auditView').hidden = v !== 'audit';
+  document.querySelectorAll('#nav [data-v]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+  if (v === 'home') renderHome(); else render();
+  window.scrollTo(0, 0);
+}
+const STAT = [['open', 'To dispute', 'var(--c-over)'], ['accepted', 'Accepted', 'var(--c-spent)'], ['filed', 'Filed with FedEx', 'var(--c-ok)'], ['refunded', 'Refunded', 'var(--c-warn)'], ['rejected', 'Rejected', 'var(--c-pink)']];
+const tipAttr = t => ` data-tip="${esc(t)}"`;
+function renderHome() {
+  const el = $('home'); if (S.view !== 'home') return;
+  const all = S.audits;
+  if (!all.length) {
+    el.innerHTML = `<div class="card empty"><b>No audits yet.</b><br>An audit compares one set of FedEx invoices with what ShipRush quoted.<br><br><button id="hNew">Start your first audit</button></div>`;
+    $('hNew').onclick = () => { setView('audit'); $('newBtn').click(); }; return;
+  }
+  const years = [...new Set(all.map(a => a.year).filter(Boolean))].sort((a, b) => a - b);
+  const yr = S.homeYear !== 'all' && years.includes(S.homeYear) ? S.homeYear : 'all';
+  const sel = all.filter(a => yr === 'all' || a.year === yr);
+  const sm = a => a.sum || null, hasSum = all.some(sm);
+  const sumOf = (list, f) => list.reduce((t, a) => t + (sm(a) ? f(sm(a)) : 0), 0);
+  const spent = sumOf(sel, x => num(x.billed)), over = sumOf(sel, x => num(x.overTotal)), rec = sumOf(sel, x => num(x.recovered));
+  const pend = sumOf(sel, x => num(x.by && x.by.open) + num(x.by && x.by.filed));
+  const pct = (a, b) => b > 0 ? (a / b * 100).toFixed(1) + '%' : '0%';
+  const yearLabel = yr === 'all' ? 'all years' : String(yr);
+
+  // Chart A: spent by year, overcharged part on top
+  const ys = years.map(y => { const l = all.filter(a => a.year === y); return { y, spent: sumOf(l, x => num(x.billed)), over: sumOf(l, x => num(x.overTotal)), n: l.length }; });
+  const maxS = Math.max(1, ...ys.map(d => d.spent));
+  const colsA = ys.map(d => {
+    const H = 150, h = Math.max(d.spent > 0 ? 4 : 0, d.spent / maxS * H), ho = d.over > 0 ? Math.max(3, d.over / maxS * H) : 0;
+    const op = yr === 'all' || yr === d.y ? 1 : .35;
+    const tip = `${d.y}\nSpent with FedEx: ${money(d.spent)}\nOvercharged: ${money(d.over)} (${pct(d.over, d.spent)})\n${d.n} audit${d.n === 1 ? '' : 's'}`;
+    return `<button class="colw" data-year="${d.y}" aria-pressed="${yr === d.y}"${tipAttr(tip)} aria-label="${esc(d.y + ': spent ' + usd(d.spent) + ', overcharged ' + usd(d.over))}">
+      <span class="val">${usd(d.spent)}</span>
+      <span class="bars" style="height:${h}px;opacity:${op}">${ho ? `<span class="seg top" style="height:${ho}px;background:var(--c-over)"></span>` : ''}<span class="seg ${ho ? '' : 'top'}" style="flex:1;background:var(--c-spent)"></span></span>
+      <span class="lbl">${d.y}</span><span class="sub">${usd(d.over)} over · ${pct(d.over, d.spent)}</span></button>`;
+  }).join('');
+
+  // Chart B: overcharge rate per audit
+  const auds = all.filter(a => sm(a) && num(sm(a).billed) > 0).slice().sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  const rate = a => num(sm(a).overTotal) / num(sm(a).billed) * 100, maxR = Math.max(0.1, ...auds.map(rate));
+  const colsB = auds.map(a => {
+    const h = Math.max(3, rate(a) / maxR * 120), tip = `${a.name}\nOvercharged ${money(num(sm(a).overTotal))} of ${money(num(sm(a).billed))} spent (${rate(a).toFixed(1)}%)`;
+    return `<div class="colw"${tipAttr(tip)}><span class="val">${rate(a).toFixed(1)}%</span><span class="bars" style="height:${h}px"><span class="seg top" style="flex:1;background:var(--c-over)"></span></span><span class="lbl">${esc(a.name)}</span><span class="sub">${usd(num(sm(a).overTotal))} of ${usd(num(sm(a).billed))}</span></div>`;
+  }).join('');
+
+  // Chart C: what happened to the overcharges
+  const by = k => sumOf(sel, x => num(x.by && x.by[k]));
+  const tot = STAT.reduce((t, [k]) => t + by(k), 0);
+  const stackC = tot > 0 ? `<div class="stackbar" role="img" aria-label="Overcharges by status">${STAT.filter(([k]) => by(k) > 0).map(([k, l, c]) => `<span class="seg" style="flex:${by(k)};background:${c}"${tipAttr(l + ': ' + money(by(k)) + ' (' + pct(by(k), tot) + ')')}></span>`).join('')}</div>` : '<p>No overcharges in this range.</p>';
+  const rowsC = STAT.map(([k, l, c]) => `<div class="lrow"><i style="background:${c}"></i><span>${l}</span><span class="num">${money(by(k))}</span><span class="pc">${pct(by(k), tot)}</span></div>`).join('');
+
+  // Chart D: where the extra charges come from
+  const chg = {};
+  sel.forEach(a => { const b = sm(a) && sm(a).byCharge; if (b) Object.entries(b).forEach(([d, v]) => { chg[d] = (chg[d] || 0) + num(v); }); });
+  const top = Object.entries(chg).sort((a, b) => b[1] - a[1]).slice(0, 6), maxD = Math.max(1, ...top.map(x => x[1]));
+  const rowsD = top.map(([d, v]) => `<div class="hrow"${tipAttr(d + ': ' + money(v))}><span class="name">${esc(d)}</span><span class="track"><span class="fill" style="display:block;width:${v / maxD * 100}%;background:var(--c-over)"></span></span><span class="num">${usd(v)}</span></div>`).join('');
+
+  // Audit cards, grouped by year
+  const group = [...new Set(sel.map(a => a.year || 0))].sort((a, b) => b - a);
+  const cards = group.map(y => `<div class="yeargroup"><h3>${y || 'No year'}</h3><div class="acards">${sel.filter(a => (a.year || 0) === y).map(a => {
+    const x = sm(a), d = (a.createdAt || '').slice(0, 10);
+    return `<div class="acard"><div><div class="nm">${esc(a.name)}</div><div class="meta">${x ? x.shipments + ' shipments compared' : 'Totals not calculated yet'}${d ? ' · started ' + d : ''}</div></div>
+      ${x ? `<div class="nums"><div><span>Spent</span><b>${usd(num(x.billed))}</b></div><div><span>Overcharged</span><b>${usd(num(x.overTotal))}</b></div>
+        <div><span>To dispute</span><b>${usd(num(x.by && x.by.open) + num(x.by && x.by.filed))}</b></div><div><span>Recovered</span><b>${usd(num(x.recovered))}</b></div></div>` : '<div class="note">Open this audit once and its totals will appear here.</div>'}
+      <button class="go ghost" data-open="${esc(a.id)}">Open audit</button></div>`; }).join('')}</div></div>`).join('');
+
+  const tableRows = sel.map(a => { const x = sm(a); return `<tr><td>${esc(a.name)}</td><td>${a.year || ''}</td>${x ? `<td class="num">${money(num(x.billed))}</td><td class="num">${money(num(x.quoted))}</td><td class="num">${money(num(x.overTotal))}</td><td class="num">${pct(num(x.overTotal), num(x.billed))}</td><td class="num">${money(num(x.by && x.by.open) + num(x.by && x.by.filed))}</td><td class="num">${money(num(x.by && x.by.accepted))}</td><td class="num">${money(num(x.recovered))}</td>` : '<td colspan="7">Not calculated yet</td>'}</tr>`; }).join('');
+
+  el.innerHTML = `
+    <div class="hhead"><h2>Your FedEx history, ${yearLabel}</h2>
+      <div class="bar"><div class="chips" id="yearChips"><button class="chip" data-y="all" aria-pressed="${yr === 'all'}">All years</button>${years.slice().reverse().map(y => `<button class="chip" data-y="${y}" aria-pressed="${yr === y}">${y}</button>`).join('')}</div>
+      <button id="hNew">New audit</button></div></div>
+    ${hasSum ? '' : '<div class="banner">Your saved audits will show up here with totals after you open each one once.</div>'}
+    <div class="tiles">
+      <div class="tile"><div class="k">Spent with FedEx</div><div class="v">${usd(spent)}</div><div class="d">Total billed on your invoices</div></div>
+      <div class="tile"><div class="k">Overcharged</div><div class="v">${usd(over)}</div><div class="d">${pct(over, spent)} of spend: billed above what ShipRush quoted</div></div>
+      <div class="tile"><div class="k">Still to dispute</div><div class="v">${usd(pend)}</div><div class="d">Not yet accepted, refunded or rejected</div></div>
+      <div class="tile"><div class="k">Recovered</div><div class="v">${usd(rec)}</div><div class="d">Refunds you have logged</div></div>
+    </div>
+    <div class="charts">
+      <div class="panel"><h2>Spent by year</h2><p>Each bar is a year of FedEx spend. The orange part is what was billed above the ShipRush quote. Click a year to focus on it.</p>
+        <div class="legend"><span><i style="background:var(--c-spent)"></i>Billed as quoted</span><span><i style="background:var(--c-over)"></i>Overcharged</span></div>
+        <div class="cols" role="img" aria-label="Spent by year: ${esc(ys.map(d => d.y + ' ' + usd(d.spent) + ' with ' + usd(d.over) + ' overcharged').join('; '))}">${colsA}</div></div>
+      <div class="panel"><h2>Overcharge rate for each audit</h2><p>The share of the spend that was overcharged. A tall bar means that audit needs a closer look.</p>
+        ${auds.length > 1 ? `<div class="cols" role="img" aria-label="Overcharge rate per audit">${colsB}</div>` : '<p>Add a second audit to compare them side by side.</p>'}</div>
+      <div class="panel"><h2>What happened to the overcharges</h2><p>${money(tot)} overcharged in ${yearLabel}.</p>${stackC}<div class="lrows">${rowsC}</div></div>
+      <div class="panel"><h2>Where the extra charges come from</h2><p>The FedEx charges behind the overcharges, biggest first. Fixing these at the source saves the most.</p>
+        <div class="hbars">${rowsD || '<p>No charge details yet.</p>'}</div></div>
+    </div>
+    <div class="hhead"><h2>All audits</h2></div>${cards}
+    <details class="tbl panel"><summary>Show the numbers as a table</summary><div class="scroll"><table><thead><tr><th>Audit</th><th>Year</th><th class="num">Spent</th><th class="num">Quoted</th><th class="num">Overcharged</th><th class="num">Rate</th><th class="num">To dispute</th><th class="num">Accepted</th><th class="num">Recovered</th></tr></thead><tbody>${tableRows}</tbody></table></div></details>`;
+}
+/* hover tooltip for charts */
+const tip = $('tip');
+function showTip(e) {
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  if (!t) { tip.hidden = true; return; }
+  tip.textContent = t.dataset.tip; tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, e.clientX + 12)) + 'px';
+  tip.style.top = Math.max(8, Math.min(window.innerHeight - h - 8, e.clientY + 14)) + 'px';
+}
+$('home').addEventListener('pointermove', showTip);
+$('home').addEventListener('pointerleave', () => { tip.hidden = true; });
+$('home').addEventListener('click', e => {
+  const y = e.target.closest('[data-y]'), c = e.target.closest('[data-year]'), o = e.target.closest('[data-open]');
+  if (y) { S.homeYear = y.dataset.y === 'all' ? 'all' : Number(y.dataset.y); renderHome(); }
+  else if (c) { const n = Number(c.dataset.year); S.homeYear = S.homeYear === n ? 'all' : n; renderHome(); }
+  else if (o) { openAudit(o.dataset.open).then(() => { renderPicker(); setView('audit'); }); }
+  else if (e.target.id === 'hNew') { setView('audit'); $('newBtn').click(); }
+});
+$('nav').onclick = e => { const b = e.target.closest('[data-v]'); if (b) setView(b.dataset.v); };
 
 /* ---------- events ---------- */
 $('chips').onclick = e => { const b = e.target.closest('[data-f]'); if (b) { S.filter = b.dataset.f; render(); } };
@@ -469,7 +692,8 @@ $('tbl').onchange = e => {
   else if (a === 'rec') saveMark(t, { rec: el.value === '' ? null : num(el.value) });
   else if (a === 'note') saveMark(t, { note: el.value.trim() });
 };
-$('tol').oninput = render;
+$('tol').oninput = () => { if (S.id) safeSet('fedexAudit.tol.' + S.id, $('tol').value); render(); scheduleSum(); };
+$('inclAcc').onchange = () => scheduleSum();
 $('tbl').addEventListener('focusout', () => { if (S.dirty) setTimeout(render, 0); });
 const drop = $('drop');
 drop.onclick = () => $('picker').click();
@@ -482,7 +706,7 @@ drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); handleFi
 /* ---------- start ---------- */
 (async () => {
   $('newYear').value = new Date().getFullYear();
-  render();
+  renderHome(); render();
   const c = window.claude;
   if (c && c.use) { try { db = await c.use('db'); userNS = await c.use('user'); dl = await c.use('downloads'); } catch (e) {} }
   if (userNS) {
@@ -501,11 +725,8 @@ drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); handleFi
     S.audits = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
     if (S.id && !S.audits.some(a => a.id === S.id)) { S.id = null; }
     renderPicker();
-    if (S.firstLoad) {
-      S.firstLoad = false;
-      const last = safeGet('fedexAudit.last'), pick = S.audits.find(a => a.id === last) || S.audits[0];
-      if (pick) openAudit(pick.id).then(renderPicker);
-    }
+    if (S.id && applySettings(S.audits.find(a => a.id === S.id))) render();
+    renderHome();
   }, e => { $('msg').textContent = 'Could not load saved audits: ' + (e.message || e.code); });
 })();
 </script>
